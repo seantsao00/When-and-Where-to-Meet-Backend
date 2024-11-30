@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "lint": "eslint \"src/**\""
+  },
+  "dependencies": {
+    "express": "^4.21.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@stylistic/eslint-plugin": "^2.11.0",
+    "eslint": "^9.16.0",
+    "eslint-plugin-import": "^2.31.0"
+  }
+}
