@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
@@ -17,6 +18,7 @@ export default [
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      globals: { ...globals.node },
     },
     rules: {
       'sort-imports': ['warn', { ignoreDeclarationSort: true }],
