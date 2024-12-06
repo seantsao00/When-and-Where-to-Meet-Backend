@@ -8,8 +8,10 @@ url = "https://www.pickoneplace.com/search/program"
 fields = ['名稱', '地址', '容量', '價格',]
 
 venues = []
-for i in tqdm(range(1)):
+for i in tqdm(range(154)):
     response = requests.get(url + '?page=' + str(i + 1))
+    if response.status_code != 200:
+        continue
     soup = BeautifulSoup(response.text, 'html.parser')
     for item in soup.select('.searchProgramContentArea'):
         name = item.select_one('.mD5 .programIcon img[alt="空間場地"]')
@@ -20,8 +22,11 @@ for i in tqdm(range(1)):
         price = item.find('span', class_='btn btnHour').text.strip() if item.find('span', class_='btn btnHour') else "N/A"
 
         response_place = requests.get(soup.find('a', class_='logProgramClick')['href'])
-        soup_place = BeautifulSoup(response_place.text, 'html.parser')
-        location = soup_place.find('div', class_='location-block').find('p').get_text(separator=" ", strip=True) if soup_place.find('div', class_='location-block') else "N/A"
+        if response_place.status_code == 200:
+            soup_place = BeautifulSoup(response_place.text, 'html.parser')
+            location = soup_place.find('div', class_='location-block').find('p').get_text(separator=" ", strip=True) if soup_place.find('div', class_='location-block') else "N/A"
+        else:
+            location = "N/A"
 
         venues.append([name, location, capacity, price])
 
