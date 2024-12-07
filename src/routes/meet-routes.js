@@ -256,7 +256,7 @@ router.post('/:meetId/availabilities/:userId', meetExistsChecker, async (req, re
   try {
     const userId = req.userId;
     const { meetId, userId: targetUserId } = req.params;
-    const { timestamp, locationOptionIds } = req.body;
+    const { timestamp, locationIds } = req.body;
 
     if (userId !== targetUserId) return res.sendStatus(403);
 
@@ -265,37 +265,39 @@ router.post('/:meetId/availabilities/:userId', meetExistsChecker, async (req, re
       await client.query('BEGIN');
 
       const { rows: existingAvailability } = await client.query(`
-      SELECT * FROM availability
-      WHERE timestamp = $1 AND user_id = $2 AND meet_id = $3
-    `, [timestamp, userId, meetId]);
+        SELECT * FROM availability
+        WHERE timestamp = $1 AND user_id = $2 AND meet_id = $3
+      `, [timestamp, userId, meetId]);
 
       let availability;
       if (existingAvailability.length === 0) {
         availability = (await client.query(`
-        INSERT INTO availability (timestamp, user_id, meet_id)
-        VALUES ($1, $2, $3)
-        RETURNING *
-      `, [timestamp, userId, meetId])).rows[0];
+          INSERT INTO availability (timestamp, user_id, meet_id)
+          VALUES ($1, $2, $3)
+          RETURNING *
+        `, [timestamp, userId, meetId])).rows[0];
       } else {
         availability = existingAvailability[0];
       }
 
-      for (const locationOptionId of locationOptionIds) {
+      for (const locationId of locationIds) {
         const { rows: locationOptions } = await client.query(`
-        SELECT * FROM location_option
-        WHERE id = $1 AND meet_id = $2
-      `, [locationOptionId, meetId]);
-        if (locationOptions.length === 0) throw new Error('Invalid location option ID.');
+          SELECT *
+          FROM location_option AS lo
+          WHERE lo.location_id = $1 AND lo.meet_id = $2
+        `, [locationId, meetId]);
+        if (locationOptions.length === 0) return req.status(400).json({ error: 'Invalid location ID' });
+        const locationOptionId = locationOptions[0].id;
 
         const { rows: availabilityLocations } = await client.query(`
-        SELECT * FROM availability_location
-        WHERE location_option_id = $1 AND availability_id = $2
-      `, [locationOptionId, availability.id]);
+          SELECT * FROM availability_location
+          WHERE location_option_id = $1 AND availability_id = $2
+        `, [locationOptionId, availability.id]);
         if (availabilityLocations.length === 0) {
           await client.query(`
-          INSERT INTO availability_location (location_option_id, availability_id)
-          VALUES ($1, $2)
-        `, [locationOptionId, availability.id]);
+            INSERT INTO availability_location (location_option_id, availability_id)
+            VALUES ($1, $2)
+          `, [locationOptionId, availability.id]);
         }
       }
 
@@ -314,7 +316,7 @@ router.post('/:meetId/availabilities/:userId', meetExistsChecker, async (req, re
   }
 });
 
-// DELETE /meets/:meetId/availabilities/:timestamp
+// DELETE /meets/:meetId/availabilities/:userId/:timestamp
 // Delete availability for a meet at a specific timestamp.
 router.delete('/:meetId/availabilities/:userId/:timestamp', meetExistsChecker, async (req, res, next) => {
   const userId = req.userId;
