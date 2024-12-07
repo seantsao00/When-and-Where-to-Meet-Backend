@@ -10,7 +10,7 @@ meet_ids = meet_df["id"].tolist()
 results = []
 
 for user_id in user_ids:
-    base_meets = random.randint(7, 13)
+    base_meets = random.randint(3, 6)
 
     if random.random() < 0.1:
         num_meets = random.randint(50, 100)
