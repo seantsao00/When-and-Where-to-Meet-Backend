@@ -1,109 +1,71 @@
 import random
 import pandas as pd
+from const import *
+from datetime import datetime, timedelta
 
-# Define types of meetings and corresponding titles and reasons
-meeting_types = {
-    "work": {
-        "prefixes" : ["專案會議", "團隊聚會", "公司簡報", "產品研討", "技術討論", "年度大會", "策略會議", "工作坊", "培訓活動", "部門會議"],
-        "suffixes" : ["計畫", "日程", "討論", "檢討", "報告", "總結", "更新", "安排", "計劃", "重點"],
-        "reasons": [
-            "這次會議主要討論未來的發展方向與策略。",
-            "我們將聚焦於團隊協作提升效率。",
-            "本次會議旨在解決現有的產品問題。",
-            "計劃討論公司年度報表與績效。",
-            "這是一個技術分享與創新頭腦風暴的場合。",
-            "將進行重要項目的階段性匯報與檢討。",
-            "此次聚會為團隊建設，增強凝聚力。",
-            "重點更新公司的市場推廣計劃。",
-            "會議目的是整理當前的資源分配方案。",
-            "針對最新的政策變化進行應對討論。", 
-            "認真衝業績啊你各位。", 
-        ]
-    },
-    "study": {
-        "prefixes": ["期末報告", "專題作業", "小組討論", "學習計劃", "實驗報告", "模擬考試", "課堂簡報", "競賽準備", "數據分析"],
-        "suffixes": ["檢討", "安排", "報告", "討論", "分工", "計畫", "進度", "總結", "更新", "分析"],
-        "reasons": [
-            "討論即將到來的期末報告分工與進度。",
-            "準備小組作業並確認研究方向。",
-            "核對課堂筆記與學習重點。",
-            "討論畢業專題計劃與初步內容框架。",
-            "協調團隊研究報告的內容格式與細節。",
-            "解決數學作業中難題的討論會。",
-            "為即將舉行的模擬考制定復習計劃。",
-            "計劃參加學術競賽並分配各自任務。",
-            "準備課堂簡報內容與練習展示技巧。",
-            "討論實驗報告中的數據分析結果。",
-            "大家來臨時報佛腳，不想被當掉 QQ。",
-        ]
-    },
-    "trip": {
-        "prefixes": ["登山活動", "海灘旅行", "賞楓之旅", "露營體驗", "海外旅遊", "滑雪行程", "城市漫遊", "公園野餐", "單車環島", "戶外燒烤"],
-        "suffixes": ["規劃", "討論", "安排", "計劃", "行程", "清單", "細節", "進度", "預算", "執行"],
-        "reasons": [
-            "高中同學的台北市一日遊",
-            "社團朋友的夜市美食探索",
-            "好友的陽明山風景小旅行",
-            "大學同學的台南古蹟與美食之旅",
-            "親友的烤肉與聚餐活動",
-            "同事的宜蘭泡湯之旅",
-            "家人的花蓮海岸日落行程",
-            "學長學姐的淡水老街小吃聚會",
-            "朋友的九份咖啡館探訪",
-            "閨密的大溪老街美食與購物日"
-            "出去玩啦啦啦啦，嗚嗚嗚嗚嗚嗚好爽喔！",
-        ]
-    },
-    "gathering": {
-        "prefixes": ["週末晚餐", "生日派對", "台北市一日游", "電影聚會", "音樂分享", "咖啡廳聚會", "燒烤活動", "戶外遊戲", "輕鬆聚會"],
-        "suffixes": ["計畫", "討論", "細節", "安排", "菜單", "規劃", "主題", "日程", "清單", "計劃"],
-        "reasons": [
-            "計劃一場週五晚餐聚會的主題與菜單。",
-            "商討聚會中遊戲與活動的安排。",
-            "討論電影之夜的片單與時間。",
-            "決定週末桌遊活動的地點與人數。",
-            "準備生日派對的佈置與驚喜內容。",
-            "討論好友聚會中的分工與飲料準備。",
-            "咖啡廳聚會，聊聊天。",
-            "計劃在郊外舉行的音樂分享會。",
-            "戶外燒烤活動購物。",
-            "一次輕鬆的水療日行程。",
-        ]
-    },
-}
-
-# Generate random meeting names based on type
 def generate_meeting_name(meeting_type):
-    prefixes = meeting_types[meeting_type]["prefixes"]
-    suffixes = meeting_types[meeting_type]["suffixes"]
+    prefixes = MEET_DESCRIPTION[meeting_type]["prefixes"]
+    suffixes = MEET_DESCRIPTION[meeting_type]["suffixes"]
     return random.choice(prefixes) + random.choice(suffixes)
 
-# Generate random descriptions based on type
 def generate_description(meeting_type):
-    return random.choice(meeting_types[meeting_type]["reasons"])
+    return random.choice(MEET_DESCRIPTION[meeting_type]["reasons"])
 
-# Generate random public/private status
 def generate_public_status():
-    return random.choices(['公開', '私人'], weights=[1, 2], k=1)[0]
+    return random.choices([True, False], weights=[1, 2], k=1)[0]
 
-# Generate random meeting status
 def generate_status():
-    return random.choices(['active', 'deleted'], weights=[7, 1], k=1)[0]
+    return random.choices(['active', 'deleted'], weights=[10, 1], k=1)[0]
 
-# Generate data
+def generate_weighted_ids(total, concentration_ratio):
+    high_weight_count = max(1, int(total * concentration_ratio))
+    high_weight_ids = random.sample(range(1, total + 1), high_weight_count)
+    weights = [10 if i in high_weight_ids else 1 for i in range(1, total + 1)]
+    return weights
+
+def generate_random_date(start_date, end_date):
+    days_between = (end_date - start_date).days
+    random_days = random.randint(0, days_between)
+    return start_date + timedelta(days=random_days)
+
+def generate_random_time(start_time, end_time):
+    time_options = []
+    current_time = start_time
+    while current_time <= end_time:
+        time_options.append(current_time)
+        current_time += timedelta(minutes=15)
+    return random.choice(time_options)
+
+def generate_schedule():
+    start_date = generate_random_date(datetime.strptime("2022-01-03", "%Y-%m-%d"), datetime.strptime("2024-12-05", "%Y-%m-%d"))
+    end_date = start_date + timedelta(days=random.randint(0, 20))
+    while True:
+        start_time = generate_random_time(datetime.strptime("07:00:00", "%H:%M:%S"), datetime.strptime("18:00:00", "%H:%M:%S"))
+        end_time = generate_random_time(datetime.strptime("11:00:00", "%H:%M:%S"), datetime.strptime("23:00:00", "%H:%M:%S"))
+        if start_time < end_time:
+            break
+    return start_time.strftime("%H:%M:%S"), end_time.strftime("%H:%M:%S"), start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
+
+place_weights = generate_weighted_ids(NUM_LOCATIONS, 0.02)
+holder_weights = generate_weighted_ids(NUM_USERS, 0.02)
+
 data = []
-for _ in range(1000):
-    meeting_type = random.choice(list(meeting_types.keys()))
+for i in range(NUM_MEETS):
+    meeting_type = random.choice(list(MEET_DESCRIPTION.keys()))
+    start_time, end_time, start_date, end_date = generate_schedule()
     data.append({
-        "type": meeting_type,
+        "id": i + 1,
         "isPublic": generate_public_status(),
         "name": generate_meeting_name(meeting_type),
         "status": generate_status(),
         "description": generate_description(meeting_type),
-        "finalPlaceId": random.randint(0, 9999),
-        "holderId": random.randint(0, 999)
+        "finalPlaceId": random.choices(range(1, NUM_LOCATIONS + 1), weights=place_weights, k=1)[0],
+        "holderId": random.choices(range(1, NUM_USERS + 1), weights=holder_weights, k=1)[0],
+        "startTime": start_time,
+        "endTime": end_time,
+        "startDate": start_date,
+        "endDate": end_date,
     })
 
-# Create a DataFrame and save as CSV
 df_meetings = pd.DataFrame(data)
-df_meetings.to_csv('../dataset/meet.csv', index=False)
+df_meetings.to_csv('../dataset/meets.csv', index=False)

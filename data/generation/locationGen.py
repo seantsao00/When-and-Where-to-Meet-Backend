@@ -2,13 +2,15 @@ import requests
 from bs4 import BeautifulSoup
 import csv
 from tqdm import tqdm
+from const import MAX_PAGES
 
 url = "https://www.pickoneplace.com/search/program"
 
-fields = ['名稱', '地址', '容量', '價格',]
+fields = ['ID', '名稱', '地址', '容量', '價格',]
+id = 1
 
 venues = []
-for i in tqdm(range(154)):
+for i in tqdm(range(MAX_PAGES)):
     response = requests.get(url + '?page=' + str(i + 1))
     if response.status_code != 200:
         continue
@@ -28,7 +30,8 @@ for i in tqdm(range(154)):
         else:
             location = "N/A"
 
-        venues.append([name, location, capacity, price])
+        venues.append([id, name, location, capacity, price])
+        id += 1
 
 with open('../dataset/locaitons.csv', 'w', newline='', encoding='utf-8') as file:
     writer = csv.writer(file)
