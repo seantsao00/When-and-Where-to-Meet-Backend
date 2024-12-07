@@ -53,14 +53,17 @@ def generate_availability(meetings, users, location_options, joins):
                     "timestamp": timestamp
                 })
 
-                # Generate locationOptionId for IsAvailableAt
-                location_option = random.choice(location_options)
-                is_available_at_data.append({
-                    "id": is_available_at_id_counter,
-                    "locationOptionId": location_option["id"],
-                    "availabilityId": id_counter
-                })
-                is_available_at_id_counter += 1
+                # Generate multiple locationOptionIds for IsAvailableAt
+                num_location_options = random.randint(1, 3)  # Each availability can have 1-3 location options
+                for _ in range(num_location_options):
+                    location_option = random.choice(location_options)
+                    is_available_at_data.append({
+                        "id": is_available_at_id_counter,
+                        "locationOptionId": location_option["id"],
+                        "availabilityId": id_counter
+                    })
+                    is_available_at_id_counter += 1
+
                 id_counter += 1
 
             user_availabilities.extend(available_slots)
