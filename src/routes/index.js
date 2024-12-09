@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import meetRouter from './meet-routes';
-import userRouter from './user-routes';
+import meetRouter from './meet-routes.js';
+import userRouter from './user-routes.js';
 
 const router = Router();
 

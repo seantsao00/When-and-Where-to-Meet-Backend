@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../db';
+import { query } from '../db/index.js';
 
 // Middleware that checks if a user exists.
 // If the user does not exist, sends a 404 response.
