@@ -8,8 +8,9 @@ const { Pool } = pg;
 import { executeQuery } from './utils.js';
 
 const pool = new Pool();
-const dir = path.join(import.meta.dirname, '../data/datasetusers.csv');
+const dir = path.join(import.meta.dirname, '../data/dataset/');
 
+// 讀取 CSV 的通用函數
 const readCsv = async (filePath) => {
   const data = [];
   await new Promise((resolve, reject) => {
@@ -22,99 +23,85 @@ const readCsv = async (filePath) => {
   return data;
 };
 
+// 批次插入的函數，限制每次插入的行數
+const batchInsert = async (tableName, columns, rows, batchSize = 1000) => {
+  if (rows.length === 0) return;
+
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    const placeholders = batch
+      .map((_, j) => `(${columns.map((_, k) => `$${j * columns.length + k + 1}`).join(', ')})`)
+      .join(', ');
+
+    const values = batch.flat();
+    const query = `
+      INSERT INTO ${tableName} (${columns.join(', ')})
+      VALUES ${placeholders}
+      ON CONFLICT DO NOTHING;
+    `;
+
+    try {
+      await executeQuery(pool, query, values);
+      // console.log(`Inserted ${batch.length} rows into ${tableName}.`);
+    } catch (error) {
+      console.error(`Error inserting into ${tableName}:`, error.message);
+    }
+  }
+};
+
+// 資料庫初始化程式
 const seedDB = async () => {
   console.log('Seeding database...');
   try {
-    const userCsvFilePath = path.join(dir, 'users.csv');
-    const meetCsvFilePath = path.join(dir, 'meets.csv');
-    const locationCsvFilePath = path.join(dir, 'locations.csv');
-    const locationOptionCsvFilePath = path.join(dir, 'locations.csv');
-    const joinCsvFilePath = path.join(dir, 'locations.csv');
-    const availibalityCsvFilePath = path.join(dir, 'locations.csv');
-    const isAvailableAtCsvFilePath = path.join(dir, 'locations.csv');
-    const finalDecisionCsvFilePath = path.join(dir, 'locations.csv');
+    const usrCsvFilePath = path.join(dir, 'usr.csv');
+    const meetCsvFilePath = path.join(dir, 'meet.csv');
+    const locationCsvFilePath = path.join(dir, 'location.csv');
+    const locationOptionCsvFilePath = path.join(dir, 'location_option.csv');
+    const participationCsvFilePath = path.join(dir, 'participation.csv');
+    const availibalityCsvFilePath = path.join(dir, 'availability.csv');
+    const isAvailableAtCsvFilePath = path.join(dir, 'availability_location.csv');
+    const finalDecisionCsvFilePath = path.join(dir, 'final_decision.csv');
 
-    const users = await readCsv(userCsvFilePath);
+    const usrs = await readCsv(usrCsvFilePath);
     const meets = await readCsv(meetCsvFilePath);
     const locations = await readCsv(locationCsvFilePath);
     const locationOptions = await readCsv(locationOptionCsvFilePath);
-    const joins = await readCsv(joinCsvFilePath);
+    const participation = await readCsv(participationCsvFilePath);
     const availabilities = await readCsv(availibalityCsvFilePath);
     const isAvailableAts = await readCsv(isAvailableAtCsvFilePath);
     const finalDecisions = await readCsv(finalDecisionCsvFilePath);
 
-    for (const user of users) {
-      const { id, name, email, status } = user;
-      await executeQuery(pool, `
-        INSERT INTO users (id, name, email, status)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (id) DO NOTHING;
-      `, [id, name, email, status]);
-    }
+    await batchInsert('usr', ['id', 'name', 'email', 'status'], usrs.map(({ id, name, email, status }) => [id, name, email, status]));
+    console.log('Usrs seeded.');
 
-    for (const meet of meets) {
-      const { id, isPublic, name, status, description, holderId,
-        startTime, endTime, startDate, endDate } = meet;
-      await executeQuery(pool, `
-        INSERT INTO users (id, isPublic, name, status, description, holderId, startTime, endTime, startDate, endDate)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (id) DO NOTHING;
-      `, [id, isPublic, name, status, description, holderId, startTime, endTime, startDate, endDate]);
-    }
+    await batchInsert('meet', ['id', 'is_public', 'name', 'status', 'description', 'holder_id', 'start_time', 'end_time', 'start_date', 'end_date'],
+      meets.map(({ id, is_public, name, status, description, holder_id, start_time, end_time, start_date, end_date }) =>
+        [id, is_public, name, status, description, holder_id, start_time, end_time, start_date, end_date]));
+    console.log('Meets seeded.');
 
-    for (const location of locations) {
-      const { id, name, address, capacity, price } = location;
-      await executeQuery(pool, `
-        INSERT INTO users (id, name, address, capacity, price)
-        VALUES ($1, $2, $3, $4 $5)
-        ON CONFLICT (id) DO NOTHING;
-      `, [id, name, address, capacity, price]);
-    }
+    await batchInsert('location', ['id', 'name', 'address', 'capacity', 'price'],
+      locations.map(({ id, name, address, capacity, price }) => [id, name, address, capacity, price]));
+    console.log('Locations seeded.');
 
-    for (const locationOption of locationOptions) {
-      const { meetId, locationId, id } = locationOption;
-      await executeQuery(pool, `
-        INSERT INTO users (meetId, locationId, id)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (id) DO NOTHING;
-      `, [meetId, locationId, id]);
-    }
+    await batchInsert('location_option', ['id', 'meet_id', 'location_id'],
+      locationOptions.map(({ id, meet_id, location_id }) => [id, meet_id, location_id]));
+    console.log('Location options seeded.');
 
-    for (const join of joins) {
-      const { userId, meetId, isPending } = join;
-      await executeQuery(pool, `
-        INSERT INTO users (userId, meetId)
-        VALUES ($1, $2)
-        ON CONFLICT (userId, meetId, isPending) DO NOTHING;
-      `, [userId, meetId, isPending]);
-    }
+    await batchInsert('participation', ['meet_id', 'usr_id', 'is_pending'],
+      participation.map(({ meet_id, usr_id, is_pending }) => [meet_id, usr_id, is_pending]));
+    console.log('Participations seeded.');
 
-    for (const availability of availabilities) {
-      const { id, userId, meetId, timestamp } = availability;
-      await executeQuery(pool, `
-        INSERT INTO users (id, userId, meetId, timestamp)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (id) DO NOTHING;
-      `, [id, userId, meetId, timestamp]);
-    }
+    await batchInsert('availability', ['id', 'usr_id', 'meet_id', 'time_segment'],
+      availabilities.map(({ id, usr_id, meet_id, time_segment }) => [id, usr_id, meet_id, time_segment]));
+    console.log('Availabilities seeded.');
 
-    for (const isAvailableAt of isAvailableAts) {
-      const { id, locationOptionId, availabilityId } = isAvailableAt;
-      await executeQuery(pool, `
-        INSERT INTO users (id, locationOptionId, availabilityId)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (id) DO NOTHING;
-      `, [id, locationOptionId, availabilityId]);
-    }
+    await batchInsert('availability_location', ['location_option_id', 'availability_id'],
+      isAvailableAts.map(({ location_option_id, availability_id }) => [location_option_id, availability_id]));
+    console.log('Availability locations seeded.');
 
-    for (const finalDecision of finalDecisions) {
-      const { meetId, finalPlaceId, finalTime } = finalDecision;
-      await executeQuery(pool, `
-        INSERT INTO users (meetId, finalPlaceId, finalTime)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (id) DO NOTHING;
-      `, [meetId, finalPlaceId, finalTime]);
-    }
+    await batchInsert('final_decision', ['meet_id', 'final_place_id', 'final_time'],
+      finalDecisions.map(({ meet_id, final_place_id, final_time }) => [meet_id, final_place_id, final_time]));
+    console.log('Final decisions seeded.');
 
     console.log('Database seeding completed.');
   } catch (err) {

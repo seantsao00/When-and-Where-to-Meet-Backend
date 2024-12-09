@@ -1,6 +1,6 @@
 from datetime import datetime
 
-NUM_USERS = 1000
+NUM_USRS = 1000
 NUM_MEETS = 4210
 MAX_PAGES = 154
 NUM_LOCATIONS = 1540

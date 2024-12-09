@@ -47,24 +47,27 @@ def generate_schedule():
     return start_time.strftime("%H:%M:%S"), end_time.strftime("%H:%M:%S"), start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
 
 place_weights = generate_weighted_ids(NUM_LOCATIONS, 0.02)
-holder_weights = generate_weighted_ids(NUM_USERS, 0.02)
+holder_weights = generate_weighted_ids(NUM_USRS, 0.02)
 
 data = []
 for i in range(NUM_MEETS):
     meeting_type = random.choice(list(MEET_DESCRIPTION.keys()))
     start_time, end_time, start_date, end_date = generate_schedule()
+    duration_minutes = random.randint(1, 12) * 15
+    duration_interval = f"{duration_minutes // 60} hours {duration_minutes % 60} minutes"
     data.append({
         "id": i + 1,
-        "isPublic": generate_public_status(),
+        "is_public": generate_public_status(),
         "name": generate_meeting_name(meeting_type),
         "status": generate_status(),
         "description": generate_description(meeting_type),
-        "holderId": random.choices(range(1, NUM_USERS + 1), weights=holder_weights, k=1)[0],
-        "startTime": start_time,
-        "endTime": end_time,
-        "startDate": start_date,
-        "endDate": end_date,
+        "holder_id": random.choices(range(1, NUM_USRS + 1), weights=holder_weights, k=1)[0],
+        "start_time": start_time,
+        "end_time": end_time,
+        "start_date": start_date,
+        "end_date": end_date,
+        "duration": duration_interval
     })
 
 df_meetings = pd.DataFrame(data)
-df_meetings.to_csv('../dataset/meets.csv', index=False)
+df_meetings.to_csv('../dataset/meet.csv', index=False)

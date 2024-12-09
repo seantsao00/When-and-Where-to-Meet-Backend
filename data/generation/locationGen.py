@@ -6,7 +6,7 @@ from const import MAX_PAGES
 
 url = "https://www.pickoneplace.com/search/program"
 
-fields = ['ID', '名稱', '地址', '容量', '價格',]
+fields = ['id', 'name', 'address', 'capacity', 'price',]
 id = 1
 
 venues = []
@@ -33,7 +33,7 @@ for i in tqdm(range(MAX_PAGES)):
         venues.append([id, name, location, capacity, price])
         id += 1
 
-with open('../dataset/locaitons.csv', 'w', newline='', encoding='utf-8') as file:
+with open('../dataset/location.csv', 'w', newline='', encoding='utf-8') as file:
     writer = csv.writer(file)
     writer.writerow(fields)
     writer.writerows(venues)
