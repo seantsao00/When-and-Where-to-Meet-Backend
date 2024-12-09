@@ -2,7 +2,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file=.env src/index.js",
-    "lint": "eslint \"src/**\""
+    "lint": "eslint \"src/**\"",
+    "init-db": "node scripts/init-DB.js",
+    "seed-db": "node scripts/seed-DB.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

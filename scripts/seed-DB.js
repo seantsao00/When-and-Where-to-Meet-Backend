@@ -12,7 +12,7 @@ const readCsv = async (filePath) => {
   await new Promise((resolve, reject) => {
     fs.createReadStream(filePath)
       .pipe(csv())
-      .on('data', (row) => data.push(row))
+      .on('data', row => data.push(row))
       .on('end', resolve)
       .on('error', reject);
   });
@@ -29,6 +29,7 @@ const seedDB = async () => {
     const joinCsvFilePath = path.join(dir, 'locations.csv');
     const availibalityCsvFilePath = path.join(dir, 'locations.csv');
     const isAvailableAtCsvFilePath = path.join(dir, 'locations.csv');
+    const finalDecisionCsvFilePath = path.join(dir, 'locations.csv');
 
     const users = await readCsv(userCsvFilePath);
     const meets = await readCsv(meetCsvFilePath);
@@ -37,6 +38,7 @@ const seedDB = async () => {
     const joins = await readCsv(joinCsvFilePath);
     const availabilities = await readCsv(availibalityCsvFilePath);
     const isAvailableAts = await readCsv(isAvailableAtCsvFilePath);
+    const finalDecisions = await readCsv(finalDecisionCsvFilePath);
 
     for (const user of users) {
       const { id, name, email, status } = user;
@@ -100,6 +102,15 @@ const seedDB = async () => {
         VALUES ($1, $2, $3)
         ON CONFLICT (id) DO NOTHING;
       `, [id, locationOptionId, availabilityId]);
+    }
+
+    for (const finalDecision of finalDecisions) {
+      const { meetId, finalPlaceId, finalTime } = finalDecision;
+      await executeQuery(pool, `
+        INSERT INTO users (meetId, finalPlaceId, finalTime)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id) DO NOTHING;
+      `, [meetId, finalPlaceId, finalTime]);
     }
 
     console.log('Database seeding completed.');

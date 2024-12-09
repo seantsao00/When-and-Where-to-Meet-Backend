@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-import { executeQuery } from './utils';
+import { executeQuery } from './utils.js';
 
 const pool = new Pool();
 
@@ -74,6 +74,14 @@ const initDb = async () => {
           capacity integer NOT NULL,
           status varchar(10) DEFAULT 'available'
             CHECK (status IN ('available', 'unavailable')) NOT NULL,
+    `);
+
+    await executeQuery(pool, `
+      CREATE TABLE IF NOT EXISTS final_decision (
+          meet_id int REFERENCES meet (id),
+          final_place_id int REFERENCES location (id),
+          final_time timestamp NOT NULL,
+          PRIMARY KEY (meet_id, final_place_id),
     `);
 
     console.log('Database schema initialized successfully.');
