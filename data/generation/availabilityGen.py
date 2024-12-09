@@ -71,20 +71,21 @@ def generate_availability(meetings, users, location_options, joins):
 
                     # Track combinations of time and location for the final decision
                         key = (timestamp, location_option["id"])
-                        location_time_combinations[key] = location_time_combinations.get(key, 0) + 1
+                        # location_time_combinations[key] = location_time_combinations.get(key, 0) + 1
 
                 id_counter += 1
 
             user_availabilities.extend(available_slots)
 
         # Determine the best meeting final time and place
-        if location_time_combinations:
-            best_combination = max(location_time_combinations, key=location_time_combinations.get)
-            final_meeting_times_and_places.append({
-                "meetId": meet["id"],
-                "finalTime": best_combination[0],
-                "finalPlaceId": best_combination[1]
-            })
+        # if location_time_combinations:
+        #     best_combination = max(location_time_combinations, key=location_time_combinations.get)
+        #     if random.choices([True, False], weights=[20, 1]):
+        #         final_meeting_times_and_places.append({
+        #             "meetId": meet["id"],
+        #             "finalTime": best_combination[0],
+        #             "finalPlaceId": best_combination[1]
+        #         })
 
     return pd.DataFrame(availability_data), pd.DataFrame(is_available_at_data), pd.DataFrame(final_meeting_times_and_places)
 

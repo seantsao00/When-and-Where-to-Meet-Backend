@@ -59,7 +59,6 @@ for i in range(NUM_MEETS):
         "name": generate_meeting_name(meeting_type),
         "status": generate_status(),
         "description": generate_description(meeting_type),
-        "finalPlaceId": random.choices(range(1, NUM_LOCATIONS + 1), weights=place_weights, k=1)[0],
         "holderId": random.choices(range(1, NUM_USERS + 1), weights=holder_weights, k=1)[0],
         "startTime": start_time,
         "endTime": end_time,
