@@ -2,16 +2,19 @@ import { Router } from 'express';
 import { getClient, query } from '../db';
 
 // Make sure to the meet exists.
+// If it does not exist, return 404.
+// Meets are considered to exist if they are active.
 const meetExistsChecker = async (req, res, next) => {
   const { meetId } = req.params;
   const { rows } = await query(`
-    SELECT * FROM meet WHERE id = $1
+    SELECT * FROM meet WHERE id = $1 AND status = 'active'
   `, [meetId]);
 
   if (rows.length === 0) return res.sendStatus(404);
   next();
 };
 
+// Make sure the requester is the holder of the meet.
 const meetHolderChecker = async (req, res, next) => {
   const userId = req.userId;
   const { meetId } = req.params;
@@ -25,6 +28,39 @@ const meetHolderChecker = async (req, res, next) => {
 
 const router = Router();
 
+// GET /meets
+// Get all meets' id and details, ordered by id.
+// Query parameters: { offset = 0, limit = 10 }
+// Response body: { items: [{ id, meetName, meetDescription, isPublic, holderId, locationId? }] }
+router.get('/', async (req, res) => {
+  try {
+    const { offset = 0, limit = 10 } = req.query;
+    const { rows } = await query(`
+      SELECT
+        id,
+        name AS meetName,
+        description AS meetDescription,
+        is_public AS isPublic,
+        holder_id AS holderId,
+        location_id AS locationId
+      FROM meet
+      WHERE status = 'active'
+      ORDER BY id
+      OFFSET $1 LIMIT $2
+    `, [offset, limit]);
+
+    const items = rows.map(row => ({
+      ...row,
+      locationId: row.locationId === null ? undefined : row.locationId,
+    }));
+
+    res.json({ items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch meets.' });
+  }
+});
+
 // POST /meets
 // Create a new meet.
 // Request body: { meetName, meetDescription, isPublic }
@@ -37,6 +73,7 @@ router.post('/', async (req, res) => {
     const { id } = (await query(`
       INSERT INTO meet (name, description, is_public, holder_id)
       VALUES ($1, $2, $3, $4)
+      RETURNING id
     `, [meetName, meetDescription, isPublic, userId])).rows[0];
     res.json({ id });
   } catch (err) {
@@ -93,12 +130,12 @@ router.patch('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res) 
       params.push(req.body.isPublic);
     }
 
-    if (updates.length > 0) {
-      params.push(meetId);
-      await query(`
-        UPDATE meet SET ${updates.join(', ')} WHERE id = $${params.length}
-      `, params);
-    }
+    if (updates.length === 0) return res.sendStatus(400);
+
+    params.push(meetId);
+    await query(`
+      UPDATE meet SET ${updates.join(', ')} WHERE id = $${params.length}
+    `, params);
 
     res.sendStatus(200);
   } catch (err) {
@@ -116,6 +153,7 @@ router.delete('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res)
     await query(`
       UPDATE meet SET status = $1 WHERE id = $2
     `, ['deleted', meetId]);
+
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
@@ -249,14 +287,15 @@ router.get('/:meetId/availabilities/:userId', meetExistsChecker, async (req, res
   }
 });
 
-// POST /meets/:meetId/availabilities/:userId
+// POST /meets/:meetId/availabilities/:userId/:timestamp
 // Add availability for a meet.
-// Request body: { timestamp, locationIds: [locationId] }
-router.post('/:meetId/availabilities/:userId', meetExistsChecker, async (req, res) => {
+// Request body: { locationIds: [locationId] }
+router.post('/:meetId/availabilities/:userId/:timestamp', meetExistsChecker, async (req, res) => {
   try {
     const userId = req.userId;
     const { meetId, userId: targetUserId } = req.params;
-    const { timestamp, locationIds } = req.body;
+    const { timestamp } = req.params;
+    const { locationIds } = req.body;
 
     if (userId !== targetUserId) return res.sendStatus(403);
 
