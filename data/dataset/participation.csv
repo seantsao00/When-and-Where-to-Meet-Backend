@@ -1,4 +1,4 @@
-user_id,meet_id,is_pending
+usr_id,meet_id,is_pending
 1,3257,False
 1,1870,False
 1,2742,False

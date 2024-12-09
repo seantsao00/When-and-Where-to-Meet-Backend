@@ -1,15 +1,20 @@
 import pandas as pd
 
 # 讀取 CSV 檔案
-csv_file_path = "data/dataset/availability_location.csv"
+csv_file_path = "data/dataset/availability.csv"
 
 # 加載資料
-availability_location = pd.read_csv(csv_file_path)
+availability = pd.read_csv(csv_file_path)
 
-# 移除 'id' 欄位
-availability_location = availability_location.drop(columns=['id'])
+# 確保時間段格式統一
+availability['time_segment'] = pd.to_datetime(availability['time_segment'])
 
-# 儲存結果到新的 CSV
-availability_location.to_csv(csv_file_path, index=False)
+# 找出真正的重複項
+duplicates = availability[availability.duplicated(subset=['usr_id', 'meet_id', 'time_segment'], keep=False)]
 
-print(f"Updated CSV without 'id' column saved to {csv_file_path}.")
+# 顯示重複的行
+if not duplicates.empty:
+    print("以下是重複的 {usr_id, meet_id, time_segment} 記錄：")
+    print(duplicates)
+else:
+    print("沒有發現重複的 {usr_id, meet_id, time_segment} 記錄。")

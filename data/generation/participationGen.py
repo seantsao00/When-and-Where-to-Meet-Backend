@@ -22,7 +22,7 @@ for user_id in user_ids:
     selected_meets = random.sample(meet_ids, num_meets)
     for meet_id in selected_meets:
         is_pending = random.random() < 0.02
-        results.append({"user_id": user_id, "meet_id": meet_id, "is_pending": is_pending})
+        results.append({"usr_id": user_id, "meet_id": meet_id, "is_pending": is_pending})
 
 user_meets_df = pd.DataFrame(results)
 
