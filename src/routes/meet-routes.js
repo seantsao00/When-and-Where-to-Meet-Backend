@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getClient, query } from '../db';
+import { getClient, query } from '../db/index.js';
 
 // Make sure to the meet exists.
 // If it does not exist, return 404.
