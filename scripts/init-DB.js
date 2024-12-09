@@ -3,16 +3,25 @@ const { Pool } = pg;
 
 import { executeQuery } from './utils.js';
 
-const pool = new Pool();
-
 const initDb = async () => {
   console.log('Starting database initialization...');
-  try {
-    // will fail if exists, so executeQuery cannot be used
-    // await pool.query(`
-    //   CREATE DATABASE ${process.env.PGDATABASE};
-    // `);
 
+  const postgresPool = new Pool({ database: 'postgres' });
+  try {
+    await postgresPool.query(`
+      DROP DATABASE IF EXISTS ${process.env.PGDATABASE};
+    `);
+    await postgresPool.query(`
+      CREATE DATABASE ${process.env.PGDATABASE};
+    `);
+  } catch (err) {
+    console.error('Error creating database:', err.message);
+  } finally {
+    await postgresPool.end();
+  }
+
+  const pool = new Pool();
+  try {
     await executeQuery(pool, `
       CREATE TABLE IF NOT EXISTS usr (
         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

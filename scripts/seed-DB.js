@@ -1,11 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
-import { Pool } from 'pg';
-import { executeQuery } from './utils';
 
-const pool = Pool();
-const dir = path.join(__dirname, '../data/datasetusers.csv');
+import pg from 'pg';
+const { Pool } = pg;
+
+import { executeQuery } from './utils.js';
+
+const pool = new Pool();
+const dir = path.join(import.meta.dirname, '../data/datasetusers.csv');
 
 const readCsv = async (filePath) => {
   const data = [];
