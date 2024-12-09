@@ -20,7 +20,7 @@ const initDb = async () => {
     email varchar(100) NOT NULL UNIQUE,
     status varchar(10) DEFAULT 'active'
         CHECK (status IN ('active', 'banned', 'deleted')) NOT NULL
-);
+    );
     `);
 
     await executeQuery(pool, `

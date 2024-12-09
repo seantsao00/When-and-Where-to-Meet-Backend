@@ -3,8 +3,8 @@
   "scripts": {
     "dev": "node --env-file=.env src/index.js",
     "lint": "eslint \"src/**\"",
-    "init-db": "node scripts/init-DB.js",
-    "seed-db": "node scripts/seed-DB.js"
+    "init-db": "node --env-file=.env scripts/init-DB.js",
+    "seed-db": "node --env-file=.env scripts/seed-DB.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
