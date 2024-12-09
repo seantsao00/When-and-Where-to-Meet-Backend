@@ -187,6 +187,47 @@ router.get('/:meetId/location-options', meetExistsChecker, async (req, res) => {
   }
 });
 
+// POST /meets/:meetId/location-options
+// Add location options for a meet.
+// Request body: { locationIds: [locationId] }
+router.post('/:meetId/location-options', meetExistsChecker, meetHolderChecker, async (req, res) => {
+  try {
+    const { meetId } = req.params;
+    const { locationIds } = req.body;
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      for (const locationId of locationIds) {
+        const { rows: locationOptions } = await client.query(`
+          SELECT *
+          FROM location_option
+          WHERE location_id = $1 AND meet_id = $2
+        `, [locationId, meetId]);
+
+        if (locationOptions.length === 0) {
+          await client.query(`
+            INSERT INTO location_option (location_id, meet_id)
+            VALUES ($1, $2)
+          `, [locationId, meetId]);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.sendStatus(201);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to add location options.' });
+  }
+});
+
 // GET /meets/:meetId/availabilities
 // Get availability of all users for a meet.
 // Response body: { items: [{ userId, username, userEmail, availabilities: [{ timestamp, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }] }
@@ -383,6 +424,50 @@ router.delete('/:meetId/availabilities/:userId/:timestamp', meetExistsChecker, a
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete availability.' });
+  }
+});
+
+// POST /meets/:meetId/final-decision
+// Make a final decision for a meet.
+// Request body: { finalPlaceId, finalTime }
+router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, async (req, res) => {
+  try {
+    const { meetId } = req.params;
+    const { finalPlaceId, finalTime } = req.body;
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      const { rows: existingFinalDecision } = await client.query(`
+        SELECT * FROM final_decision
+        WHERE meet_id = $1
+      `, [meetId]);
+      if (existingFinalDecision.length > 0) return res.status(400).json({ error: 'Final decision already made.' });
+
+      const { rows: sameTimeLocationFinalDecisions } = await client.query(`
+        SELECT * FROM final_decision
+        WHERE final_time = $1 AND final_place_id = $2
+      `, [finalTime, finalPlaceId]);
+      if (sameTimeLocationFinalDecisions.length > 0) return res.status(400).json({ error: 'Final decision already made for this time and location.' });
+
+      await client.query(`
+        INSERT INTO final_decision (meet_id, final_place_id, final_time)
+        VALUES ($1, $2, $3)
+      `, [meetId, finalPlaceId, finalTime]);
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.sendStatus(201);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to make final decision.' });
   }
 });
 
