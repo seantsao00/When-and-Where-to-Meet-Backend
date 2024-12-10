@@ -132,3 +132,6 @@ dist
 # python related
 .venv
 __pycache__/
+
+# vscode
+.vscode/
