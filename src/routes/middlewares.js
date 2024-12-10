@@ -73,10 +73,13 @@ const meetParticipantChecker = async (req, res, next) => {
 
   const usrId = req.usrId;
   const { meetId } = req.params;
-  const { rows } = await query(`
+  const { rows: existingParticipation } = await query(`
     SELECT * FROM participation WHERE meet_id = $1 AND usr_id = $2 AND is_pending = false
   `, [meetId, usrId]);
-  if (rows.length === 0) return res.sendStatus(403);
+  const { holderId } = (await query(`
+    SELECT holder_id AS "holderId" FROM meet WHERE id = $1
+  `, [meetId])).rows[0];
+  if (existingParticipation.length === 0 && req.usrId !== holderId) return res.sendStatus(403);
   next();
 };
 
