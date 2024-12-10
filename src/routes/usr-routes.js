@@ -1,35 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/index.js';
-
-// Middleware that checks if a usr exists.
-// If the usr does not exist, sends a 404 response.
-// Usrs are considered to exist if they are not deleted.
-const usrExistsChecker = async (req, res, next) => {
-  try {
-    const result = await query('SELECT * FROM usr WHERE id = $1 AND status != $2', [req.params.usrId, 'deleted']);
-    if (result.rows.length === 0) {
-      return res.sendStatus(404);
-    }
-    next();
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-};
-
-const usrAuthChecker = async (req, res, next) => {
-  try {
-    const usrId = req.usrId;
-    const { usrId: targetUsrId } = req.params;
-    if (usrId !== targetUsrId) {
-      return res.sendStatus(403);
-    }
-    next();
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-};
+import { usrAuthChecker, usrExistsChecker } from './middlewares.js';
 
 const router = Router();
 

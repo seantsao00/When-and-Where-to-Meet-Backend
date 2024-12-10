@@ -1,29 +1,6 @@
 import { Router } from 'express';
 import { getClient, query } from '../db/index.js';
-
-// Make sure to the meet exists.
-// If it does not exist, return 404.
-// Meets are considered to exist if they are active.
-const meetExistsChecker = async (req, res, next) => {
-  const { meetId } = req.params;
-  const { rows } = await query(`
-    SELECT * FROM meet WHERE id = $1 AND status = 'active'
-  `, [meetId]);
-
-  if (rows.length === 0) return res.sendStatus(404);
-  next();
-};
-
-// Make sure the requester is the holder of the meet.
-const meetHolderChecker = async (req, res, next) => {
-  const usrId = req.usrId;
-  const { meetId } = req.params;
-  const { holderId } = (await query(`
-    SELECT holder_id AS "holderId" FROM meet WHERE id = $1
-  `, [meetId])).rows[0];
-  if (usrId !== holderId) return res.sendStatus(403);
-  next();
-};
+import { meetExistsChecker, meetHolderChecker, usrAuthChecker } from './middlewares.js';
 
 const router = Router();
 
@@ -355,6 +332,68 @@ router.post('/:meetId/location-options', meetExistsChecker, meetHolderChecker, a
   }
 });
 
+// GET /meets/:meetId/:usrId/participating-meets
+// Get all meets that a usr is or was participating in.
+// Response body: { items: [{ meetId, meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration }] }
+router.get('/:meetId/:usrId/participating-meets', meetExistsChecker, usrAuthChecker, async (req, res) => {
+  try {
+    const usrId = req.usrId;
+
+    const { rows: items } = await query(`
+      SELECT
+        m.id AS "meetId",
+        m.name AS "meetName",
+        m.description AS "meetDescription",
+        m.is_public AS "isPublic",
+        m.holder_id AS "holderId",
+        m.start_time AS "startTime",
+        m.end_time AS "endTime",
+        m.start_date AS "startDate",
+        m.end_date AS "endDate",
+        m.duration,
+      FROM meet AS m
+        JOIN participation AS p ON m.id = p.meet_id AND p.is_pending = false
+      WHERE p.usr_id = $1 AND m.status = 'active'
+    `, [usrId]);
+
+    res.json({ items });
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to fetch participating meets.' });
+  }
+});
+
+// GET /meets/:meetId/:usrId/holding-meets
+// Get all meets that a usr is holding.
+// Response body: { items: [{ meetId, meetName, meetDescription, isPublic, startTime, endTime, startDate, endDate, duration }] }
+router.get('/:meetId/:usrId/holding-meets', meetExistsChecker, usrAuthChecker, async (req, res) => {
+  try {
+    const usrId = req.usrId;
+
+    const { rows: items } = await query(`
+      SELECT
+        id AS "meetId",
+        name AS "meetName",
+        description AS "meetDescription",
+        is_public AS "isPublic",
+        start_time AS "startTime",
+        end_time AS "endTime",
+        start_date AS "startDate",
+        end_date AS "endDate",
+        duration
+      FROM meet
+      WHERE holder_id = $1 AND status = 'active'
+    `, [usrId]);
+
+    res.json({ items });
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to fetch holding meets.' });
+  }
+});
+
 // GET /meets/:meetId/availabilities
 // Get availability of all usrs for a meet.
 // Response body: { items: [{ usrId, usrname, usrEmail, availabilities: [{ time_segment, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }] }
@@ -547,25 +586,25 @@ router.put('/:meetId/availabilities/:usrId/:timeSegment', meetExistsChecker, asy
   }
 });
 
-// DELETE /meets/:meetId/availabilities/:usrId/:time_segment
-// Delete availability for a meet at a specific time_segment.
-router.delete('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, async (req, res, next) => {
+// DELETE /meets/:meetId/availabilities/:usrId/:timeSegment
+// Delete availability for a meet at a specific timeSegment.
+router.delete('/:meetId/availabilities/:usrId/:timeSegment', meetExistsChecker, async (req, res, next) => {
   const usrId = req.usrId;
-  const { targetusrId } = req.params;
+  const { usrId: targetUsrId } = req.params;
 
-  if (usrId === targetusrId) return next();
+  if (usrId === targetUsrId) return next();
 
   meetHolderChecker(req, res, next);
 }, async (req, res) => {
   try {
-    const { meetId, usrId: targetusrId, time_segment } = req.params;
+    const { meetId, usrId: targetUsrId, timeSegment } = req.params;
 
     const client = await getClient();
     try {
       const { rows: availabilities } = await client.query(`
         SELECT * FROM availability
         WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
-      `, [time_segment, targetusrId, meetId]);
+      `, [timeSegment, targetUsrId, meetId]);
       if (availabilities.length === 0) {
         res.sendStatus(404);
         throw new Error('Availability not found.');
@@ -574,7 +613,7 @@ router.delete('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker,
       await client.query(`
         DELETE FROM availability
         WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
-      `, [time_segment, targetusrId, meetId]);
+      `, [timeSegment, targetUsrId, meetId]);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
