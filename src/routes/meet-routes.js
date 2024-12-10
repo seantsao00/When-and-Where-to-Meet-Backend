@@ -781,6 +781,7 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
           meeting_duration INTERVAL;
           meeting_end_time TIMESTAMP;
       BEGIN
+          SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
           -- 檢查是否已存在該會議的 final_decision
           IF EXISTS (
               SELECT 1
