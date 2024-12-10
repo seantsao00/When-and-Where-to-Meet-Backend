@@ -797,25 +797,32 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
           WHERE id = $1;
 
           -- 計算會議的結束時間
-          meeting_end_time := $2::TIMESTAMP + meeting_duration;
+          meeting_end_time := $3:TIMESTAMP + meeting_duration;
 
-          -- 檢查時間地點衝突
+          -- 對目標地點加寫鎖
+          PERFORM 1
+          FROM location
+          WHERE id = $2
+          FOR UPDATE;
+
+          -- 檢查時間地點是否衝突
           IF EXISTS (
               SELECT 1
               FROM final_decision AS fd
               JOIN meet AS m ON fd.meet_id = m.id
-              WHERE fd.final_place_id = $3
-                AND TSTZRANGE($2::TIMESTAMP, meeting_end_time) && TSTZRANGE(fd.final_time, fd.final_time + m.duration)
+              WHERE fd.final_place_id = $2
+                AND TSTZRANGE($3::TIMESTAMP, meeting_end_time) 
+                    && TSTZRANGE(fd.final_time, fd.final_time + m.duration)
           ) THEN
+              -- 發生衝突，回滾交易
               RAISE EXCEPTION 'Time and place conflict detected.';
           END IF;
 
           -- 插入最終決定
           INSERT INTO final_decision (meet_id, final_place_id, final_time)
-          VALUES ($1, $3, $2);
-
+          VALUES ($1, $2, $3);
       END $$;
-    `, [meetId, finalTime, finalPlaceId]);
+    `, [meetId, finalPlaceId, finalTime]);
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
