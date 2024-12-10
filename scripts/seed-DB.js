@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import pg from 'pg';
 const { Pool } = pg;
@@ -35,7 +34,7 @@ const seedDB = async () => {
       }
     };
 
-    // 導入每個 CSV 文件
+    // import from csv
     await copyQuery('usr', usrCsvFilePath, ['id', 'name', 'email', 'status']);
     await copyQuery('meet', meetCsvFilePath, ['id', 'is_public', 'name', 'status', 'description', 'holder_id', 'start_time', 'end_time', 'start_date', 'end_date', 'duration']);
     await copyQuery('location', locationCsvFilePath, ['id', 'name', 'address', 'capacity', 'price']);
@@ -44,6 +43,13 @@ const seedDB = async () => {
     await copyQuery('availability', availibalityCsvFilePath, ['id', 'usr_id', 'meet_id', 'time_segment']);
     await copyQuery('availability_location', isAvailableAtCsvFilePath, ['location_option_id', 'availability_id']);
     await copyQuery('final_decision', finalDecisionCsvFilePath, ['meet_id', 'final_place_id', 'final_time']);
+
+    // update index
+    await pool.query('SELECT setval(\'usr_id_seq\', (SELECT MAX(id) FROM usr));');
+    await pool.query('SELECT setval(\'meet_id_seq\', (SELECT MAX(id) FROM meet));');
+    await pool.query('SELECT setval(\'location_id_seq\', (SELECT MAX(id) FROM location));');
+    await pool.query('SELECT setval(\'location_option_id_seq\', (SELECT MAX(id) FROM location_option));');
+    await pool.query('SELECT setval(\'availability_id_seq\', (SELECT MAX(id) FROM availability));');
 
     console.log('Database seeding completed.');
   } catch (err) {
