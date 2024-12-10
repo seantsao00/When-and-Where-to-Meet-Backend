@@ -923,11 +923,11 @@ router.get('/:meetId/best-decision', meetExistsChecker, meetHolderChecker, async
         )
         -- 返回用戶指定的前 N 個最佳選擇
         SELECT
-            rc.meet_id,
-            rc.time_segment,
-            rc.location_id,
-            rc.location_name,
-            rc.available_users
+            rc.meet_id AS "meetId",
+            rc.time_segment AS "timeSegment",
+            rc.location_id AS "locationId",
+            rc.location_name AS "locationName",
+            rc.available_users AS "availableUsrs"
         FROM ranked_combinations AS rc
         WHERE rc.meet_id = $1 AND rc.rank <= $2; -- 用戶指定的前 N 名
 
