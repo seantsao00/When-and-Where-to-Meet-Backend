@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getClient, query } from '../db/index.js';
+import { getYYYYMMDD } from '../utils.js';
 import { meetExistsChecker, meetHolderChecker, usrAuthChecker } from './middlewares.js';
 
 const router = Router();
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
         m.end_time AS "endTime",
         m.start_date AS "startDate",
         m.end_date AS "endDate",
-        m.duration AS "meetDuration"
+        m.duration AS "duration"
         fd.final_time AS "finalTime",
         fd.final_place_id AS "finalPlaceId"
       FROM meet AS m
@@ -32,14 +33,13 @@ router.get('/', async (req, res) => {
       OFFSET $1 LIMIT $2
     `, [offset, limit]);
 
-    const items = rows.map((item) => {
-      Object.keys(item).forEach((key) => {
-        if (item[key] === null) {
-          item[key] = undefined;
-        }
-      });
-      return item;
-    });
+    const items = rows.map(row => ({
+      ...row,
+      startDate: getYYYYMMDD(row.startDate),
+      endDate: getYYYYMMDD(row.endDate),
+      finalTime: row.finalTime ? row.finalTime : undefined,
+      finalPlaceId: row.finalPlaceId ? row.finalPlaceId : undefined,
+    }));
 
     res.json({ items });
   } catch (err) {
@@ -105,23 +105,23 @@ router.get('/:meetId', meetExistsChecker, async (req, res) => {
     `, [meetId]);
     if (rows.length === 0) return res.sendStatus(404);
 
-    const { meetName, meetDescription, isPublic, holderId, holderName, startTime,
-      endTime, startDate, endDate, duration } = rows[0];
-
-    const finalDecision = rows.locationId !== undefined
-      ? rows.map(row => ({
-        locationId: row.locationId,
-        locationName: row.locationName,
-        locationAddress: row.locationAddress,
-        locationPrice: row.locationPrice,
-        locationCapacity: row.locationCapacity,
-        finalTime: row.finalTime,
-      }))
+    const { startDate, endDate, finalTime } = rows[0];
+    const finalDecision = rows[0].locationId
+      ? {
+          locationId: rows[0].locationId,
+          locationName: rows[0].locationName,
+          locationAddress: rows[0].locationAddress,
+          locationPrice: rows[0].locationPrice,
+          locationCapacity: rows[0].locationCapacity,
+          finalTime: finalTime ? finalTime : undefined,
+        }
       : undefined;
 
     res.json({
-      meetName, meetDescription, isPublic, holderId, holderName, startTime,
-      endTime, startDate, endDate, duration, finalDecision,
+      ...rows[0],
+      startDate: getYYYYMMDD(startDate),
+      endDate: getYYYYMMDD(endDate),
+      finalDecision,
     });
   } catch (err) {
     console.error(err);
@@ -388,14 +388,14 @@ router.post('/:meetId/location-options', meetExistsChecker, meetHolderChecker, a
   }
 });
 
-// GET /meets/:meetId/:usrId/participating-meets
+// GET /meets/participating/:usrId
 // Get all meets that a usr is or was participating in.
 // Response body: { items: [{ meetId, meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration }] }
-router.get('/:meetId/:usrId/participating-meets', meetExistsChecker, usrAuthChecker, async (req, res) => {
+router.get('/participating/:usrId', usrAuthChecker, async (req, res) => {
   try {
     const usrId = req.usrId;
 
-    const { rows: items } = await query(`
+    const { rows } = await query(`
       SELECT
         m.id AS "meetId",
         m.name AS "meetName",
@@ -406,11 +406,17 @@ router.get('/:meetId/:usrId/participating-meets', meetExistsChecker, usrAuthChec
         m.end_time AS "endTime",
         m.start_date AS "startDate",
         m.end_date AS "endDate",
-        m.duration,
+        m.duration
       FROM meet AS m
         JOIN participation AS p ON m.id = p.meet_id AND p.is_pending = false
       WHERE p.usr_id = $1 AND m.status = 'active'
     `, [usrId]);
+
+    const items = rows.map(row => ({
+      ...row,
+      startDate: getYYYYMMDD(row.startDate),
+      endDate: getYYYYMMDD(row.endDate),
+    }));
 
     res.json({ items });
   } catch (err) {
@@ -420,14 +426,14 @@ router.get('/:meetId/:usrId/participating-meets', meetExistsChecker, usrAuthChec
   }
 });
 
-// GET /meets/:meetId/:usrId/holding-meets
+// GET /meets/holding/:usrId
 // Get all meets that a usr is holding.
 // Response body: { items: [{ meetId, meetName, meetDescription, isPublic, startTime, endTime, startDate, endDate, duration }] }
-router.get('/:meetId/:usrId/holding-meets', meetExistsChecker, usrAuthChecker, async (req, res) => {
+router.get('/holding/:usrId', usrAuthChecker, async (req, res) => {
   try {
     const usrId = req.usrId;
 
-    const { rows: items } = await query(`
+    const { rows } = await query(`
       SELECT
         id AS "meetId",
         name AS "meetName",
@@ -441,6 +447,12 @@ router.get('/:meetId/:usrId/holding-meets', meetExistsChecker, usrAuthChecker, a
       FROM meet
       WHERE holder_id = $1 AND status = 'active'
     `, [usrId]);
+
+    const items = rows.map(row => ({
+      ...row,
+      startDate: getYYYYMMDD(row.startDate),
+      endDate: getYYYYMMDD(row.endDate),
+    }));
 
     res.json({ items });
   } catch (err) {
@@ -560,7 +572,7 @@ router.put('/:meetId/availabilities/:usrId/:timeSegment', meetExistsChecker, asy
   try {
     const usrId = req.usrId;
     const { meetId, usrId: targetUsrId } = req.params;
-    const { timeSegment } = req.params;
+    const timeSegment = new Date(req.params.timeSegment);
     const { locationIds } = req.body;
 
     if (usrId !== targetUsrId) return res.sendStatus(403);
@@ -579,7 +591,8 @@ router.put('/:meetId/availabilities/:usrId/:timeSegment', meetExistsChecker, asy
           FROM meet
           WHERE id = $1
         `, [meetId]))[0];
-      if (timeSegment < startTime || timeSegment > endTime || startDate > timeSegment || endDate < timeSegment) {
+      if (timeSegment < new Date(`${startDate}`) || timeSegment > new Date(`${endDate}`)
+        || timeSegment < startTime || timeSegment > endTime) {
         res.status(400).json({ error: 'Invalid time segment.' });
         throw new Error('Invalid time segment.');
       }
@@ -724,7 +737,9 @@ router.post('/:meetId/availabilities/:usrId/multiple-time-segments', meetExistsC
       }
 
       for (const timeSegment of timeSegments) {
-        if (timeSegment < startTime || timeSegment > endTime || startDate > timeSegment || endDate < timeSegment) {
+        const timeSegmentDate = new Date(timeSegment);
+        if (timeSegmentDate < new Date(`${startDate}`) || timeSegmentDate > new Date(`${endDate}`)
+          || timeSegment < startTime || timeSegment > endTime) {
           res.status(400).json({ error: 'Out of the range time segment.' });
           throw new Error('Invalid time segment.');
         }
