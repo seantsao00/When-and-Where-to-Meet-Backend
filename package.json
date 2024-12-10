@@ -5,7 +5,7 @@
     "lint": "eslint \"src/**\"",
     "index-db": "node --env-file=.env scripts/index-DB.js",
     "init-db": "node --env-file=.env scripts/init-DB.js",
-    "restore-db": "node --env-file=.env scripts/seed-DB.js",
+    "restore-db": "node --env-file=.env scripts/restore-DB.js",
     "seed-db": "node --env-file=.env scripts/seed-DB.js"
   },
   "dependencies": {

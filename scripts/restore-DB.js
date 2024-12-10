@@ -1,21 +1,35 @@
+import { exec } from 'node:child_process';
 import path from 'path';
-import { Client } from 'pg';
-const { exec } = require('node:child_process');
+import pkg from 'pg';
 
-const dir = path.join(import.meta.dirname, '../data/dataset/');
+const { Client } = pkg;
+const dir = path.join(import.meta.dirname, '../data/');
 
-// 資料庫初始化程式
+const runCommand = (command) => {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(`Error executing command: ${error.message}`);
+        return;
+      }
+      resolve(stdout || stderr);
+    });
+  });
+};
+
 const restoreDB = async () => {
   console.log('Restoring database...');
   try {
-    const client = new Client();
+    const client = new Client({ database: 'postgres' });
     await client.connect();
 
-    const backupFilePath = path.join(dir, 'Where-and-When-to-Meet.backup');
+    const backupFilePath = path.join(dir, 'When-and-Where-to-Meet.backup');
     await client.query(`DROP DATABASE IF EXISTS ${process.env.PGDATABASE}`);
     await client.query(`CREATE DATABASE ${process.env.PGDATABASE}`);
+    await client.end();
 
-    exec(`psql -d ${process.env.PGDATABASE} -f ${backupFilePath}`);
+    await runCommand(`psql ${process.env.PGDATABASE} < ${backupFilePath}`);
+    console.log('Database restored.');
   } catch (err) {
     console.error('Error restoring database:', err.message);
   }
