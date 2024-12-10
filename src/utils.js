@@ -6,4 +6,8 @@ const getHHMISS = (date) => {
   return date.toISOString().substring(11, 19);
 };
 
-export { getHHMISS, getYYYYMMDD };
+const getYYYYMMDDHHMISS = (date) => {
+  return `${getYYYYMMDD(date)} ${getHHMISS(date)}`;
+};
+
+export { getHHMISS, getYYYYMMDD, getYYYYMMDDHHMISS };

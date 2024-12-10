@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getClient, query } from '../db/index.js';
-import { getYYYYMMDD } from '../utils.js';
+import { getYYYYMMDD, getYYYYMMDDHHMISS } from '../utils.js';
 import { meetExistsChecker, meetHolderChecker, usrAuthChecker } from './middlewares.js';
 
 const router = Router();
@@ -869,7 +869,7 @@ router.get('/:meetId/best-decision', meetExistsChecker, meetHolderChecker, async
   try {
     const { meetId } = req.params;
     const { limit = 5 } = req.query;
-    const { rows: items } = await query(`
+    const { rows } = await query(`
         WITH meeting_duration AS ( -- 計算會議的開始時間和結束時間
             SELECT
                 m.id AS meet_id,
@@ -930,8 +930,13 @@ router.get('/:meetId/best-decision', meetExistsChecker, meetHolderChecker, async
             rc.available_users AS "availableUsrs"
         FROM ranked_combinations AS rc
         WHERE rc.meet_id = $1 AND rc.rank <= $2; -- 用戶指定的前 N 名
-
     `, [meetId, limit]);
+
+    const items = rows.map(row => ({
+      ...row,
+      timeSegment: getYYYYMMDDHHMISS(row.timeSegment),
+    }));
+
     res.json({ items });
   } catch (err) {
     console.error(err);
