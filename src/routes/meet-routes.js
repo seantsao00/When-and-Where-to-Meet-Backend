@@ -35,31 +35,28 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const { offset = 0, limit = 10 } = req.query;
-    const { rows } = await query(`
+    const { rows: items } = await query(`
       SELECT
         id,
-        name AS meetName,
-        description AS meetDescription,
-        is_public AS isPublic,
-        holder_id AS holderId,
-        start_time AS startTime,
-        end_time AS endTime,
-        start_date AS startDate,
-        end_date AS endDate,
-        duration ASmeetDuration
+        name AS "meetName",
+        description AS "meetDescription",
+        is_public AS "isPublic",
+        holder_id AS "holderId",
+        start_time AS "startTime",
+        end_time AS "endTime",
+        start_date AS "startDate",
+        end_date AS "endDate",
+        duration AS "meetDuration"
       FROM meet
       WHERE status = 'active'
       ORDER BY id
       OFFSET $1 LIMIT $2
     `, [offset, limit]);
 
-    const items = rows.map(row => ({
-      ...row,
-    }));
-
     res.json({ items });
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to fetch meets.' });
   }
 });
@@ -78,17 +75,18 @@ router.post('/', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [meetName, meetDescription, isPublic, usrId, start_time, end_time, start_date, end_date, duration])).rows[0];
+
     res.json({ id });
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to create meet.' });
   }
 });
 
 // GET /meets/:meetId
 // Get a meet's details.
-// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration,
-//                  finalDecision: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
+// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration, finalDecision: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
 router.get('/:meetId', meetExistsChecker, async (req, res) => {
   try {
     const { meetId } = req.params;
@@ -131,10 +129,13 @@ router.get('/:meetId', meetExistsChecker, async (req, res) => {
       finalTime: row.finalTime,
     }));
 
-    res.json({ meetName, meetDescription, isPublic, holderId, holderName, startTime,
-      endTime, startDate, endDate, duration, finalDecision });
+    res.json({
+      meetName, meetDescription, isPublic, holderId, holderName, startTime,
+      endTime, startDate, endDate, duration, finalDecision,
+    });
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to fetch meet.' });
   }
 });
@@ -171,6 +172,7 @@ router.patch('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res) 
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to update meet.' });
   }
 });
@@ -188,6 +190,7 @@ router.delete('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res)
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to delete meet.' });
   }
 });
@@ -201,11 +204,11 @@ router.get('/:meetId/location-options', meetExistsChecker, async (req, res) => {
 
     const { rows: items } = await query(`
       SELECT
-        l.id AS locationId,
-        l.name AS locationName,
-        l.address AS locationAddress,
-        l.price AS locationPrice,
-        l.capacity AS locationCapacity
+        l.id AS "locationId",
+        l.name AS "locationName",
+        l.address AS "locationAddress",
+        l.price AS "locationPrice",
+        l.capacity AS "locationCapacity"
       FROM location_option AS lo
         JOIN location AS l ON lo.location_id = l.id
       WHERE lo.meet_id = $1
@@ -214,6 +217,7 @@ router.get('/:meetId/location-options', meetExistsChecker, async (req, res) => {
     res.json({ items });
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to fetch location options.' });
   }
 });
@@ -244,17 +248,18 @@ router.post('/:meetId/location-options', meetExistsChecker, meetHolderChecker, a
           `, [locationId, meetId]);
         }
       }
-
       await client.query('COMMIT');
-      res.sendStatus(201);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
     }
+
+    res.sendStatus(201);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to add location options.' });
   }
 });
@@ -269,9 +274,9 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
     const { rows } = await query(`
       SELECT
         u.id AS "usrId",
-        u.name AS "usrname",
+        u.name AS "usrName",
         u.email AS "usrEmail",
-        a.time_segment AS "time_segment",
+        a.time_segment AS "timeSegment",
         l.id AS "locationId",
         l.name AS "locationName",
         l.address AS "locationAddress",
@@ -287,15 +292,15 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
 
     const items = Object.values(rows.reduce((map, row) => {
       if (!map[row.usrId]) {
-        map[row.usrId] = { usrId: row.usrId, usrname: row.usrname, usrEmail: row.usrEmail, availabilities: [] };
+        map[row.usrId] = { usrId: row.usrId, usrname: row.usrName, usrEmail: row.usrEmail, availabilities: [] };
       }
-      if (!map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment)) {
-        map[row.usrId].availabilities.push({ time_segment: row.time_segment, locations: [] });
+      if (!map[row.usrId].availabilities.find(a => a.timeSegment === row.timeSegment)) {
+        map[row.usrId].availabilities.push({ timeSegment: row.timeSegment, locations: [] });
       }
-      const availability = map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment);
+      const availability = map[row.usrId].availabilities.find(a => a.timeSegment === row.timeSegment);
       availability.locations.push({
         locationId: row.locationId,
-        locationName: row.locatioName,
+        locationName: row.locationName,
         locationAddress: row.locationAddress,
         locationPrice: row.locationPrice,
         locationCapacity: row.locationCapacity,
@@ -306,38 +311,40 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
     res.json({ items });
   } catch (err) {
     console.error(err);
+
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to fetch availability.' });
   }
 });
 
 // GET /meets/:meetId/availabilities/:usrId
 // Get availability for a meet.
-// Response body: { items: [{ time_segment, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }
+// Response body: { items: [{ timeSegment, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }
 router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res, next) => {
   const usrId = req.usrId;
-  const { targetusrId } = req.params;
+  const { targetUsrId } = req.params;
 
-  if (usrId === targetusrId) return next();
+  if (usrId === targetUsrId) return next();
 
   meetHolderChecker(req, res, next);
 }, async (req, res) => {
   try {
-    const { meetId, usrId: targetusrId } = req.params;
+    const { meetId, usrId: targetUsrId } = req.params;
 
     const { rows } = await query(`
       SELECT
-        a.time_segment,
-        l.id AS locationId,
-        l.name AS locationName,
-        l.address AS locationAddress,
-        l.price AS locationPrice,
-        l.capacity AS locationCapacity
+        a.time_segment AS "timeSegment",
+        l.id AS "locationId",
+        l.name AS "locationName",
+        l.address AS "locationAddress",
+        l.price AS "locationPrice",
+        l.capacity AS "locationCapacity"
       FROM availability AS a
         JOIN availability_location AS al ON al.availability_id = a.id
         JOIN location_option AS lo ON lo.id = al.location_option_id
         JOIN location AS l ON l.id = lo.location_id
       WHERE a.meet_id = $1 AND a.usr_id = $2
-    `, [meetId, targetusrId]);
+    `, [meetId, targetUsrId]);
 
     if (rows.length === 0)
       return res.json({ items: [] });
@@ -355,41 +362,59 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
     res.json({ items });
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to fetch availability.' });
   }
 });
 
-// POST /meets/:meetId/availabilities/:usrId/:time_segment
-// Add availability for a meet.
+// PUT /meets/:meetId/availabilities/:usrId/:timeSegment
+// Update availability for a meet.
 // Request body: { locationIds: [locationId] }
-router.post('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, async (req, res) => {
+router.put('/:meetId/availabilities/:usrId/:timeSegment', meetExistsChecker, async (req, res) => {
   try {
     const usrId = req.usrId;
-    const { meetId, usrId: targetusrId } = req.params;
-    const { time_segment } = req.params;
+    const { meetId, usrId: targetUsrId } = req.params;
+    const { timeSegment } = req.params;
     const { locationIds } = req.body;
 
-    if (usrId !== targetusrId) return res.sendStatus(403);
+    if (usrId !== targetUsrId) return res.sendStatus(403);
 
     const client = await getClient();
     try {
       await client.query('BEGIN');
 
+      const { startDate, endDate, startTime, endTime } = (
+        await client.query(`
+          SELECT
+            start_date AS "startDate",
+            end_date AS "endDate",
+            start_time AS "startTime",
+            end_time AS "endTime"
+          FROM meet
+          WHERE id = $1
+        `, [meetId]))[0];
+      if (timeSegment < startTime || timeSegment > endTime || startDate > timeSegment || endDate < timeSegment) {
+        res.status(400).json({ error: 'Invalid time segment.' });
+        throw new Error('Invalid time segment.');
+      }
+
       const { rows: existingAvailability } = await client.query(`
         SELECT * FROM availability
         WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
-      `, [time_segment, usrId, meetId]);
+      `, [timeSegment, usrId, meetId]);
 
-      let availability;
-      if (existingAvailability.length === 0) {
-        availability = (await client.query(`
-          INSERT INTO availability (time_segment, usr_id, meet_id)
-          VALUES ($1, $2, $3)
-          RETURNING *
-        `, [time_segment, usrId, meetId])).rows[0];
-      } else {
-        availability = existingAvailability[0];
+      if (existingAvailability !== 0) {
+        await client.query(`
+          DELETE FROM availability_location
+          WHERE availability_id = $1
+        `, [existingAvailability[0].id]);
       }
+
+      const availability = (await client.query(`
+        INSERT INTO availability (time_segment, usr_id, meet_id)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `, [timeSegment, usrId, meetId])).rows[0];
 
       for (const locationId of locationIds) {
         const { rows: locationOptions } = await client.query(`
@@ -397,7 +422,10 @@ router.post('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, a
           FROM location_option AS lo
           WHERE lo.location_id = $1 AND lo.meet_id = $2
         `, [locationId, meetId]);
-        if (locationOptions.length === 0) return req.status(400).json({ error: 'Invalid location ID' });
+        if (locationOptions.length === 0) {
+          res.status(400).json({ error: 'Invalid location ID.' });
+          throw new Error('Invalid location ID.');
+        }
         const locationOptionId = locationOptions[0].id;
 
         const { rows: availabilityLocations } = await client.query(`
@@ -423,6 +451,7 @@ router.post('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, a
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to add availability.' });
   }
 });
@@ -440,21 +469,128 @@ router.delete('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker,
   try {
     const { meetId, usrId: targetusrId, time_segment } = req.params;
 
-    const { rows: availabilities } = await query(`
-      SELECT * FROM availability
-      WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
-    `, [time_segment, targetusrId, meetId]);
-    if (availabilities.length === 0) return res.sendStatus(404);
+    const client = await getClient();
+    try {
+      const { rows: availabilities } = await client.query(`
+        SELECT * FROM availability
+        WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+      `, [time_segment, targetusrId, meetId]);
+      if (availabilities.length === 0) {
+        res.sendStatus(404);
+        throw new Error('Availability not found.');
+      }
 
-    await query(`
-      DELETE FROM availability
-      WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
-    `, [time_segment, targetusrId, meetId]);
+      await client.query(`
+        DELETE FROM availability
+        WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+      `, [time_segment, targetusrId, meetId]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to delete availability.' });
+  }
+});
+
+// POST /meets/:meetId/availabilities/:usrId/multiple-time-segments
+// Update availabilities at many time segments for a meet.
+// Request body: { timeSegments: [timeSegment], locationIds: [locationId] }
+router.post('/:meetId/availabilities/:usrId/multiple-time-segments', meetExistsChecker, async (req, res) => {
+  try {
+    const usrId = req.usrId;
+    const { meetId, usrId: targetUsrId } = req.params;
+    const { timeSegments, locationIds } = req.body;
+
+    if (usrId !== targetUsrId) return res.sendStatus(403);
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      const { startDate, endDate, startTime, endTime } = (
+        await client.query(`
+          SELECT
+            start_date AS "startDate",
+            end_date AS "endDate",
+            start_time AS "startTime",
+            end_time AS "endTime"
+          FROM meet
+          WHERE id = $1
+        `, [meetId]).rows[0]);
+
+      for (const locationId of locationIds) {
+        const { rows: locationOptions } = await client.query(`
+          SELECT *
+          FROM location_option AS lo
+          WHERE lo.location_id = $1 AND lo.meet_id = $2
+        `, [locationId, meetId]);
+        if (locationOptions.length === 0) {
+          res.status(400).json({ error: 'Invalid location ID.' });
+          throw new Error('Invalid location ID.');
+        }
+      }
+
+      for (const timeSegment of timeSegments) {
+        if (timeSegment < startTime || timeSegment > endTime || startDate > timeSegment || endDate < timeSegment) {
+          res.status(400).json({ error: 'Out of the range time segment.' });
+          throw new Error('Invalid time segment.');
+        }
+
+        const { rows: existingAvailability } = await client.query(`
+          SELECT * FROM availability
+          WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+        `, [timeSegment, usrId, meetId]);
+
+        if (existingAvailability !== 0) {
+          await client.query(`
+            DELETE FROM availability_location
+            WHERE availability_id = $1
+          `, [existingAvailability[0].id]);
+        }
+
+        const availability = (await client.query(`
+          INSERT INTO availability (time_segment, usr_id, meet_id)
+          VALUES ($1, $2, $3)
+          RETURNING *
+        `, [timeSegment, usrId, meetId])).rows[0];
+
+        for (const locationId of locationIds) {
+          const { rows: availabilityLocations } = await client.query(`
+            SELECT *
+            FROM availability_location AS al
+              JOIN location_option AS lo ON lo.location_id = $1
+            WHERE al.location_option_id = lo.id AND al.availability_id = $2
+          `, [locationId, availability.id]);
+
+          if (availabilityLocations.length === 0) {
+            await client.query(`
+              INSERT INTO availability_location (location_option_id, availability_id)
+              VALUES ($1, $2)
+            `, [locationId, availability.id]);
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.sendStatus(201);
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to update availability.' });
   }
 });
 
@@ -474,13 +610,19 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
         SELECT * FROM final_decision
         WHERE meet_id = $1
       `, [meetId]);
-      if (existingFinalDecision.length > 0) return res.status(400).json({ error: 'Final decision already made.' });
+      if (existingFinalDecision.length > 0) {
+        res.status(400).json({ error: 'Final decision already made.' });
+        throw new Error('Final decision already made.');
+      }
 
       const { rows: sameTimeLocationFinalDecisions } = await client.query(`
         SELECT * FROM final_decision
         WHERE final_time = $1 AND final_place_id = $2
       `, [finalTime, finalPlaceId]);
-      if (sameTimeLocationFinalDecisions.length > 0) return res.status(400).json({ error: 'Final decision already made for this time and location.' });
+      if (sameTimeLocationFinalDecisions.length > 0) {
+        res.status(400).json({ error: 'Final decision already made.' });
+        throw new Error('Final decision already made.');
+      }
 
       await client.query(`
         INSERT INTO final_decision (meet_id, final_place_id, final_time)
@@ -498,6 +640,7 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
+    if (res.headersSent) return;
     res.status(500).json({ error: 'Failed to make final decision.' });
   }
 });
