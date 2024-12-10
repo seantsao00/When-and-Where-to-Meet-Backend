@@ -601,41 +601,48 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
     const { meetId } = req.params;
     const { finalPlaceId, finalTime } = req.body;
 
-    const client = await getClient();
-    try {
-      await client.query('BEGIN');
+    await query(`
+      DO $$
+      DECLARE
+          meeting_start_time TIME;
+          meeting_duration INTERVAL;
+          meeting_end_time TIMESTAMP;
+      BEGIN
+          -- 檢查是否已存在該會議的 final_decision
+          IF EXISTS (
+              SELECT 1
+              FROM final_decision
+              WHERE meet_id = $1
+          ) THEN
+              RAISE EXCEPTION 'Final decision already exists for this meeting.';
+          END IF;
 
-      const { rows: existingFinalDecision } = await client.query(`
-        SELECT * FROM final_decision
-        WHERE meet_id = $1
-      `, [meetId]);
-      if (existingFinalDecision.length > 0) {
-        res.status(400).json({ error: 'Final decision already made.' });
-        throw new Error('Final decision already made.');
-      }
+          -- 獲取會議的開始時間和時長
+          SELECT start_time, duration
+          INTO meeting_start_time, meeting_duration
+          FROM meet
+          WHERE id = $1;
 
-      const { rows: sameTimeLocationFinalDecisions } = await client.query(`
-        SELECT * FROM final_decision
-        WHERE final_time = $1 AND final_place_id = $2
-      `, [finalTime, finalPlaceId]);
-      if (sameTimeLocationFinalDecisions.length > 0) {
-        res.status(400).json({ error: 'Final decision already made.' });
-        throw new Error('Final decision already made.');
-      }
+          -- 計算會議的結束時間
+          meeting_end_time := $2::TIMESTAMP + meeting_duration;
 
-      await client.query(`
-        INSERT INTO final_decision (meet_id, final_place_id, final_time)
-        VALUES ($1, $2, $3)
-      `, [meetId, finalPlaceId, finalTime]);
+          -- 檢查時間地點衝突
+          IF EXISTS (
+              SELECT 1
+              FROM final_decision AS fd
+              JOIN meet AS m ON fd.meet_id = m.id
+              WHERE fd.final_place_id = $3
+                AND TSTZRANGE($2::TIMESTAMP, meeting_end_time) && TSTZRANGE(fd.final_time, fd.final_time + m.duration)
+          ) THEN
+              RAISE EXCEPTION 'Time and place conflict detected.';
+          END IF;
 
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+          -- 插入最終決定
+          INSERT INTO final_decision (meet_id, final_place_id, final_time)
+          VALUES ($1, $3, $2);
 
+      END $$;
+    `, [meetId, finalTime, finalPlaceId]);
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
