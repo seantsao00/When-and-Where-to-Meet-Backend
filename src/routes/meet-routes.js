@@ -265,10 +265,10 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
       if (!map[row.usrId]) {
         map[row.usrId] = { usrId: row.usrId, usrname: row.usrname, usrEmail: row.usrEmail, availabilities: [] };
       }
-      if (!map[row.usrId].availabilities.find(a => a.timestamp === row.timestamp)) {
-        map[row.usrId].availabilities.push({ timestamp: row.timestamp, locations: [] });
+      if (!map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment)) {
+        map[row.usrId].availabilities.push({ time_segment: row.time_segment, locations: [] });
       }
-      const availability = map[row.usrId].availabilities.find(a => a.timestamp === row.timestamp);
+      const availability = map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment);
       availability.locations.push({
         locationId: row.locationId,
         locationName: row.locationName,
@@ -288,7 +288,7 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
 
 // GET /meets/:meetId/availabilities/:usrId
 // Get availability for a meet.
-// Response body: { items: [{ timestamp, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }
+// Response body: { items: [{ time_segment, locations: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }] }
 router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res, next) => {
   const usrId = req.usrId;
   const { targetusrId } = req.params;
@@ -302,12 +302,12 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
 
     const { rows } = await query(`
       SELECT
-        a.timestamp,
+        a.time_segment,
         l.id AS locationId,
         l.name AS locationName,
         l.address AS locationAddress,
         l.price AS locationPrice,
-        l.capacity AS locationCapacity,
+        l.capacity AS locationCapacity
       FROM availability AS a
         JOIN availability_location AS al ON al.availability_id = a.id
         JOIN location_option AS lo ON lo.id = al.location_option_id
@@ -319,11 +319,11 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
       return res.json({ items: [] });
 
     const items = Object.values(rows.reduce((map, row) => {
-      if (!map[row.timestamp]) {
-        map[row.timestamp] = { timestamp: row.timestamp, locations: [] };
+      if (!map[row.time_segment]) {
+        map[row.time_segment] = { time_segment: row.time_segment, locations: [] };
       }
       if (row.location_option_id) {
-        map[row.timestamp].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
+        map[row.time_segment].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
       }
       return map;
     }, {}));
@@ -335,14 +335,14 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
   }
 });
 
-// POST /meets/:meetId/availabilities/:usrId/:timestamp
+// POST /meets/:meetId/availabilities/:usrId/:time_segment
 // Add availability for a meet.
 // Request body: { locationIds: [locationId] }
-router.post('/:meetId/availabilities/:usrId/:timestamp', meetExistsChecker, async (req, res) => {
+router.post('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, async (req, res) => {
   try {
     const usrId = req.usrId;
     const { meetId, usrId: targetusrId } = req.params;
-    const { timestamp } = req.params;
+    const { time_segment } = req.params;
     const { locationIds } = req.body;
 
     if (usrId !== targetusrId) return res.sendStatus(403);
@@ -353,16 +353,16 @@ router.post('/:meetId/availabilities/:usrId/:timestamp', meetExistsChecker, asyn
 
       const { rows: existingAvailability } = await client.query(`
         SELECT * FROM availability
-        WHERE timestamp = $1 AND usr_id = $2 AND meet_id = $3
-      `, [timestamp, usrId, meetId]);
+        WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+      `, [time_segment, usrId, meetId]);
 
       let availability;
       if (existingAvailability.length === 0) {
         availability = (await client.query(`
-          INSERT INTO availability (timestamp, usr_id, meet_id)
+          INSERT INTO availability (time_segment, usr_id, meet_id)
           VALUES ($1, $2, $3)
           RETURNING *
-        `, [timestamp, usrId, meetId])).rows[0];
+        `, [time_segment, usrId, meetId])).rows[0];
       } else {
         availability = existingAvailability[0];
       }
@@ -403,9 +403,9 @@ router.post('/:meetId/availabilities/:usrId/:timestamp', meetExistsChecker, asyn
   }
 });
 
-// DELETE /meets/:meetId/availabilities/:usrId/:timestamp
-// Delete availability for a meet at a specific timestamp.
-router.delete('/:meetId/availabilities/:usrId/:timestamp', meetExistsChecker, async (req, res, next) => {
+// DELETE /meets/:meetId/availabilities/:usrId/:time_segment
+// Delete availability for a meet at a specific time_segment.
+router.delete('/:meetId/availabilities/:usrId/:time_segment', meetExistsChecker, async (req, res, next) => {
   const usrId = req.usrId;
   const { targetusrId } = req.params;
 
@@ -414,18 +414,18 @@ router.delete('/:meetId/availabilities/:usrId/:timestamp', meetExistsChecker, as
   meetHolderChecker(req, res, next);
 }, async (req, res) => {
   try {
-    const { meetId, usrId: targetusrId, timestamp } = req.params;
+    const { meetId, usrId: targetusrId, time_segment } = req.params;
 
     const { rows: availabilities } = await query(`
       SELECT * FROM availability
-      WHERE timestamp = $1 AND usr_id = $2 AND meet_id = $3
-    `, [timestamp, targetusrId, meetId]);
+      WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+    `, [time_segment, targetusrId, meetId]);
     if (availabilities.length === 0) return res.sendStatus(404);
 
     await query(`
       DELETE FROM availability
-      WHERE timestamp = $1 AND usr_id = $2 AND meet_id = $3
-    `, [timestamp, targetusrId, meetId]);
+      WHERE time_segment = $1 AND usr_id = $2 AND meet_id = $3
+    `, [time_segment, targetusrId, meetId]);
 
     res.sendStatus(200);
   } catch (err) {
