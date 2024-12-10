@@ -268,15 +268,15 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
 
     const { rows } = await query(`
       SELECT
-        u.id AS usrId,
-        u.name AS usrname,
-        u.email AS usrEmail,
-        a.time_segment AS time_segment,
-        l.id AS locationId,
-        l.name AS locationName,
-        l.address AS locationAddress,
-        l.price AS locationPrice,
-        l.capacity AS locationCapacity
+        u.id AS "usrId",
+        u.name AS "usrname",
+        u.email AS "usrEmail",
+        a.time_segment AS "time_segment",
+        l.id AS "locationId",
+        l.name AS "locationName",
+        l.address AS "locationAddress",
+        l.price AS "locationPrice",
+        l.capacity AS "locationCapacity"
       FROM availability AS a
         JOIN usr AS u ON u.id = a.usr_id
         JOIN availability_location AS al ON al.availability_id = a.id
@@ -294,11 +294,11 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
       }
       const availability = map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment);
       availability.locations.push({
-        locationId: row.locationid,
-        locationName: row.locationname,
-        locationAddress: row.locationaddress,
-        locationPrice: row.locationprice,
-        locationCapacity: row.locationcapacity,
+        locationId: row.locationId,
+        locationName: row.locatioName,
+        locationAddress: row.locationAddress,
+        locationPrice: row.locationPrice,
+        locationCapacity: row.locationCapacity,
       });
       return map;
     }), {});
