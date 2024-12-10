@@ -10,11 +10,11 @@ const router = Router();
 // Response body: { usrId: number }
 router.post('/', async (req, res) => {
   try {
-    const { id } = await query(`
+    const { id } = (await query(`
       INSERT INTO usr (name, email)
       VALUES ($1, $2)
       RETURNING id
-    `, [req.body.name, req.body.email]);
+    `, [req.body.name, req.body.email])).rows[0];
 
     res.status(201).json({ usrId: id });
   } catch (err) {
@@ -96,47 +96,6 @@ router.post('/:usrId/ban', usrExistsChecker, adminChecker, async (req, res) => {
   try {
     await query('UPDATE usr SET status = $1 WHERE id = $2', ['banned', req.params.usrId]);
     res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
-// GET /usrs/:usrId/participating-meets
-// Returns all meets of a usr.
-// Response body: { items: [{ meetId: number, meetName: string}] }
-router.get('/:usrId/participating-meets', usrExistsChecker, usrAuthChecker, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT
-          meet.id AS meetId,
-          meet.name AS meetName
-      FROM meet
-        JOIN participation ON meet.id = participation.meet_id
-      WHERE participation.usr_id = $1 AND participation.pending = false
-    `, [req.params.usrId]);
-
-    res.json({ items: rows });
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
-// GET /usrs/:usrId/holding-meets
-// Returns all meets held by a usr.
-// Response body: { items: [{ meetId: number, meetName: string}] }
-router.get('/:usrId/holding-meets', usrExistsChecker, usrAuthChecker, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT
-          id AS meetId,
-          name AS meetName
-      FROM meet
-      WHERE holder_id = $1
-    `, [req.params.usrId]);
-
-    res.json({ items: rows });
   } catch (err) {
     console.error(err);
     res.sendStatus(500);
