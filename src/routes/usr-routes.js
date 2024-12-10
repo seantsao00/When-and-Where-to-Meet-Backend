@@ -37,10 +37,16 @@ const router = Router();
 // POST /usrs
 // Registers a new usr.
 // Request body: { name: string, email: string }
+// Response body: { usrId: number }
 router.post('/', async (req, res) => {
   try {
-    await query('INSERT INTO usr (name, email) VALUES ($1, $2)', [req.body.name, req.body.email]);
-    res.sendStatus(201);
+    const { id } = await query(`
+      INSERT INTO usr (name, email)
+      VALUES ($1, $2)
+      RETURNING id
+    `, [req.body.name, req.body.email]);
+
+    res.status(201).json({ usrId: id });
   } catch (err) {
     console.error(err);
     res.sendStatus(500);
