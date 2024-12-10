@@ -194,6 +194,98 @@ router.delete('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res)
   }
 });
 
+// POST /meets/:meetId/invite
+// Invite users to a meet.
+// Request body: { usrIds: [usrId] }
+router.post('/:meetId/invite', meetExistsChecker, meetHolderChecker, async (req, res) => {
+  try {
+    const { meetId } = req.params;
+    const { usrIds } = req.body;
+
+    const client = await getClient();
+    try {
+      for (const usrId of usrIds) {
+        const { rows: existingUsr } = await client.query(`
+          SELECT * FROM usr WHERE id = $1
+        `, [usrId]);
+        if (existingUsr.length === 0) {
+          res.status(400).json({ error: `User ${usrId} does not exist.` });
+          throw new Error(`User ${usrId} does not exist.`);
+        }
+
+        const { rows: existingParticipation } = await client.query(`
+          SELECT * FROM participation WHERE usr_id = $1 AND meet_id = $2
+        `, [usrId, meetId]);
+        if (existingParticipation.length === 0) {
+          await client.query(`
+            INSERT INTO participation (usr_id, meet_id, pending)
+            VALUES ($1, $2, true)
+          `, [usrId, meetId]);
+        }
+      }
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.sendStatus(201);
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to invite users.' });
+  }
+});
+
+// POST /meets/:meetId/participate
+// Participate in a meet. Can only participate in public meets without invitation.
+router.post('/:meetId/participate', meetExistsChecker, async (req, res) => {
+  try {
+    const { meetId } = req.params;
+    const usrId = req.usrId;
+
+    const client = await getClient();
+    try {
+      const { rows: existingParticipation } = await query(`
+        SELECT * FROM participation WHERE usr_id = $1 AND meet_id = $2 AND pending = true
+      `, [usrId, meetId]);
+
+      if (existingParticipation.length === 1) {
+        await query(`
+          UPDATE participation SET pending = false
+          WHERE usr_id = $1 AND meet_id = $2
+        `, [usrId, meetId]);
+      } else {
+        const { meet } = (await query(`
+          SELECT * FROM meet WHERE id = $1 AND status = 'active'
+        `, [meetId])).rows[0];
+
+        if (!meet.isPublic) {
+          res.status(403).json({ error: 'This meet is private.' });
+          throw new Error('This meet is private.');
+        }
+
+        await query(`
+          INSERT INTO participation (usr_id, meet_id, pending)
+          VALUES ($1, $2, false)
+        `, [usrId, meetId]);
+      }
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.sendStatus(201);
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to participate in meet.' });
+  }
+});
+
 // GET /meets/:meetId/location-options
 // Get location options for a meet.
 // Response body: { items: [{ locationId, locationName, locationAddress, locationPrice, locationCapacity }] }

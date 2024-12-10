@@ -130,7 +130,7 @@ router.get('/:usrId/participating-meets', usrExistsChecker, usrAuthChecker, asyn
           meet.name AS meetName
       FROM meet
         JOIN participation ON meet.id = participation.meet_id
-      WHERE participation.usr_id = $1
+      WHERE participation.usr_id = $1 AND participation.pending = false
     `, [req.params.usrId]);
 
     res.json({ items: rows });
