@@ -102,45 +102,4 @@ router.post('/:usrId/ban', usrExistsChecker, adminChecker, async (req, res) => {
   }
 });
 
-// GET /usrs/:usrId/participating-meets
-// Returns all meets of a usr.
-// Response body: { items: [{ meetId: number, meetName: string}] }
-router.get('/:usrId/participating-meets', usrExistsChecker, usrAuthChecker, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT
-          m.id AS meetId,
-          m.name AS meetName
-      FROM meet AS m
-        JOIN participation AS p ON m.id = p.meet_id
-      WHERE p.usr_id = $1 AND p.is_pending = false
-    `, [req.params.usrId]);
-
-    res.json({ items: rows });
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
-// GET /usrs/:usrId/holding-meets
-// Returns all meets held by a usr.
-// Response body: { items: [{ meetId: number, meetName: string}] }
-router.get('/:usrId/holding-meets', usrExistsChecker, usrAuthChecker, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT
-          id AS meetId,
-          name AS meetName
-      FROM meet
-      WHERE holder_id = $1
-    `, [req.params.usrId]);
-
-    res.json({ items: rows });
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
 export default router;
