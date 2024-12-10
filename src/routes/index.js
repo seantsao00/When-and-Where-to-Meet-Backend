@@ -4,8 +4,8 @@ import userRouter from './usr-routes.js';
 
 const router = Router();
 
-router.use(async (res, req, next) => {
-  const token = res.headers.authorization;
+router.use(async (req, res, next) => {
+  const token = req.headers.authorization;
   if (token?.startsWith('Bearer ')) req.usrId = token.slice(7);
 
   next();
