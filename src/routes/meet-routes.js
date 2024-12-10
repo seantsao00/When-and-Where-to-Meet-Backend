@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getClient, query } from '../db/index.js';
 import { getYYYYMMDD, getYYYYMMDDHHMISS } from '../utils.js';
-import { meetExistsChecker, meetHolderChecker, usrAuthChecker } from './middlewares.js';
+import { meetExistsChecker, meetHolderChecker, meetParticipantChecker, usrAuthChecker } from './middlewares.js';
 
 const router = Router();
 
@@ -75,7 +75,7 @@ router.post('/', async (req, res) => {
 // GET /meets/:meetId
 // Get a meet's details.
 // Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration, finalDecision?: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
-router.get('/:meetId', meetExistsChecker, async (req, res) => {
+router.get('/:meetId', meetExistsChecker, meetParticipantChecker, async (req, res) => {
   try {
     const { meetId } = req.params;
 
