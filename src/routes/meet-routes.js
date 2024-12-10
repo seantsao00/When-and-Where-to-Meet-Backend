@@ -87,28 +87,52 @@ router.post('/', async (req, res) => {
 
 // GET /meets/:meetId
 // Get a meet's details.
-// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration }
+// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration,
+//                  finalDecision: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
 router.get('/:meetId', meetExistsChecker, async (req, res) => {
   try {
     const { meetId } = req.params;
 
     const { rows } = await query(`
       SELECT
-        name AS meetName,
-        description AS meetDescription,
-        is_public AS isPublic,
-        holder_id AS holderId,
-        start_time AS startTime,
-        end_time AS endTime,
-        start_date AS startDate,
-        end_date AS endDate,
-        duration
-      FROM meet
-      WHERE id = $1
+        m.name AS "meetName",
+        m.description AS "meetDescription",
+        m.is_public AS "isPublic",
+        m.holder_id AS "holderId",
+        u.name AS "holderName",
+        m.start_time AS "startTime",
+        m.end_time AS "endTime",
+        m.start_date AS "startDate",
+        m.end_date AS "endDate",
+        m.duration,
+        fd.final_time AS "finalTime",
+        l.id AS "locationId",
+        l.name AS "locationName",
+        l.address AS "locationAddress",
+        l.price AS "locationPrice",
+        l.capacity AS "locationCapacity"
+      FROM meet AS m
+        LEFT JOIN usr AS u ON m.holder_id = u.id
+        LEFT JOIN final_decision AS fd ON m.id = fd.meet_id
+        LEFT JOIN location AS l ON fd.final_place_id = l.id
+      WHERE m.id = $1;
     `, [meetId]);
     if (rows.length === 0) return res.sendStatus(404);
 
-    res.json(rows[0]);
+    const { meetName, meetDescription, isPublic, holderId, holderName, startTime,
+      endTime, startDate, endDate, duration } = rows[0];
+
+    const finalDecision = rows.map(row => ({
+      locationId: row.locationId,
+      locationName: row.locationName,
+      locationAddress: row.locationAddress,
+      locationPrice: row.locationPrice,
+      locationCapacity: row.locationCapacity,
+      finalTime: row.finalTime,
+    }));
+
+    res.json({ meetName, meetDescription, isPublic, holderId, holderName, startTime,
+      endTime, startDate, endDate, duration, finalDecision });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch meet.' });
