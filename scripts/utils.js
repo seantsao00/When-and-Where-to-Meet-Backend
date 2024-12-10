@@ -17,29 +17,13 @@ const runCommand = (command) => {
   });
 };
 
-const indexDB = async (DBName) => {
-  const createIndex1 = ` 
-    CREATE INDEX ON usr (name);
-  `;
-  const client = new Client({ database: DBName });
-  try {
-    await client.connect();
-    await client.query(createIndex1);
-  } catch (err) {
-    console.error('Error building index:', err.message);
-  } finally {
-    await client.end();
-    console.log('Database connection closed.');
-  }
-};
-
 const restoreDB = async (DBName) => {
   console.log('Restoring database...');
   try {
     const client = new Client({ database: 'postgres' });
-    await client.connect();
-
     const backupFilePath = path.join(dir, 'When-and-Where-to-Meet.backup');
+
+    await client.connect();
     await client.query(`DROP DATABASE IF EXISTS ${DBName}`);
     await client.query(`CREATE DATABASE ${DBName}`);
     await client.end();
@@ -65,10 +49,9 @@ const queryWithAnalysis = async (text, params) => {
   const pool = new Pool();
   const start = Date.now();
   const res = await pool.query(text, params);
-  const plan = await pool.query(`EXPLAIN (FORMAT JSON) ${text}`, params);
   const duration = Date.now() - start;
   console.log('executed query', { text, duration, rows: res.rowCount });
-  console.log('query plan', plan);
+  // console.log('query plan', JSON.stringify(plan.rows[0]['QUERY PLAN'], null, 2));
   return res;
 };
 
@@ -84,4 +67,4 @@ const dropDatabase = async (DBName) => {
   }
 };
 
-export { executeQuery, indexDB, restoreDB, queryWithAnalysis, runCommand, dropDatabase };
+export { executeQuery, restoreDB, queryWithAnalysis, runCommand, dropDatabase };

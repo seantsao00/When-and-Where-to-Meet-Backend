@@ -5,7 +5,7 @@
     "lint": "eslint \"src/**\"",
     "backup-db": "node --env-file=.env scripts/backup-DB.js",
     "build-db": "node --env-file=.env scripts/build-DB.js",
-    "test-db": "node --env-file=.env scripts/test-index.js"
+    "test-index": "node --env-file=.env scripts/test-index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
