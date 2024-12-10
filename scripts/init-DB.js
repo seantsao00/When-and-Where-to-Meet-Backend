@@ -91,13 +91,13 @@ const initDb = async () => {
 
     await executeQuery(pool, `
       CREATE TABLE IF NOT EXISTS availability_location (
-      location_option_id bigint NOT NULL,
-      availability_id bigint NOT NULL,
-      PRIMARY KEY (location_option_id, availability_id),
-      FOREIGN KEY (location_option_id) REFERENCES location_option (id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-      FOREIGN KEY (availability_id) REFERENCES availability (id)
-        ON DELETE CASCADE ON UPDATE CASCADE
+        location_option_id bigint NOT NULL,
+        availability_id bigint NOT NULL,
+        PRIMARY KEY (location_option_id, availability_id),
+        FOREIGN KEY (location_option_id) REFERENCES location_option (id)
+          ON DELETE CASCADE ON UPDATE CASCADE,
+        FOREIGN KEY (availability_id) REFERENCES availability (id)
+          ON DELETE CASCADE ON UPDATE CASCADE
       );
     `);
 
