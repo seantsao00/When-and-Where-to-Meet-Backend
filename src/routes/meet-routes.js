@@ -7,27 +7,39 @@ const router = Router();
 // GET /meets
 // Get all meets' id and details, ordered by id.
 // Query parameters: { offset = 0, limit = 10 }
-// Response body: { items: [{ id, meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration }] }
+// Response body: { items: [{ id, meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration, finalTime?, finalPlaceId? }] }
 router.get('/', async (req, res) => {
   try {
     const { offset = 0, limit = 10 } = req.query;
-    const { rows: items } = await query(`
+    const { rows } = await query(`
       SELECT
-        id,
-        name AS "meetName",
-        description AS "meetDescription",
-        is_public AS "isPublic",
-        holder_id AS "holderId",
-        start_time AS "startTime",
-        end_time AS "endTime",
-        start_date AS "startDate",
-        end_date AS "endDate",
-        duration AS "meetDuration"
-      FROM meet
+        m.id,
+        m.name AS "meetName",
+        m.description AS "meetDescription",
+        m.is_public AS "isPublic",
+        m.holder_id AS "holderId",
+        m.start_time AS "startTime",
+        m.end_time AS "endTime",
+        m.start_date AS "startDate",
+        m.end_date AS "endDate",
+        m.duration AS "meetDuration"
+        fd.final_time AS "finalTime",
+        fd.final_place_id AS "finalPlaceId"
+      FROM meet AS m
+        JOIN final_decision AS fd ON meet.id = fd.meet_id
       WHERE status = 'active'
       ORDER BY id
       OFFSET $1 LIMIT $2
     `, [offset, limit]);
+
+    const items = rows.map((item) => {
+      Object.keys(item).forEach((key) => {
+        if (item[key] === null) {
+          item[key] = undefined;
+        }
+      });
+      return item;
+    });
 
     res.json({ items });
   } catch (err) {
@@ -44,13 +56,13 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const usrId = req.usrId;
-    const { meetName, meetDescription, isPublic, start_time, end_time, start_date, end_date, duration } = req.body;
+    const { meetName, meetDescription, isPublic, startTime, endTime, startDate, endDate, duration } = req.body;
 
     const { id } = (await query(`
       INSERT INTO meet (name, description, is_public, holder_id, start_time, end_time, start_date, end_date, duration)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
-    `, [meetName, meetDescription, isPublic, usrId, start_time, end_time, start_date, end_date, duration])).rows[0];
+    `, [meetName, meetDescription, isPublic, usrId, startTime, endTime, startDate, endDate, duration])).rows[0];
 
     res.json({ id });
   } catch (err) {
@@ -62,7 +74,7 @@ router.post('/', async (req, res) => {
 
 // GET /meets/:meetId
 // Get a meet's details.
-// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration, finalDecision: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
+// Response body: { meetName, meetDescription, isPublic, holderId, startTime, endTime, startDate, endDate, duration, finalDecision?: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime } }
 router.get('/:meetId', meetExistsChecker, async (req, res) => {
   try {
     const { meetId } = req.params;
@@ -96,14 +108,16 @@ router.get('/:meetId', meetExistsChecker, async (req, res) => {
     const { meetName, meetDescription, isPublic, holderId, holderName, startTime,
       endTime, startDate, endDate, duration } = rows[0];
 
-    const finalDecision = rows.map(row => ({
-      locationId: row.locationId,
-      locationName: row.locationName,
-      locationAddress: row.locationAddress,
-      locationPrice: row.locationPrice,
-      locationCapacity: row.locationCapacity,
-      finalTime: row.finalTime,
-    }));
+    const finalDecision = rows.locationId !== undefined
+      ? rows.map(row => ({
+        locationId: row.locationId,
+        locationName: row.locationName,
+        locationAddress: row.locationAddress,
+        locationPrice: row.locationPrice,
+        locationCapacity: row.locationCapacity,
+        finalTime: row.finalTime,
+      }))
+      : undefined;
 
     res.json({
       meetName, meetDescription, isPublic, holderId, holderName, startTime,
