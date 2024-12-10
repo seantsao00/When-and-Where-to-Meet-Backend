@@ -135,3 +135,6 @@ __pycache__/
 
 # vscode
 .vscode/
+
+# test
+/test*
