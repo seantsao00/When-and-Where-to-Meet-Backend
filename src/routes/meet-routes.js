@@ -290,7 +290,7 @@ router.post('/:meetId/participate', meetExistsChecker, async (req, res) => {
           WHERE usr_id = $1 AND meet_id = $2
         `, [usrId, meetId]);
       } else {
-        const { meet } = (await query(`
+        const meet = (await query(`
           SELECT * FROM meet WHERE id = $1 AND status = 'active'
         `, [meetId])).rows[0];
 
