@@ -57,12 +57,13 @@ router.post('/', async (req, res) => {
 // Response body: { usrId: number, usrName: string, usrEmail: string, usrStatus: string }
 router.get('/:usrId', usrExistsChecker, usrAuthChecker, async (req, res) => {
   try {
+    console.log(req.params);
     const { rows } = await query(`
       SELECT
-          id AS usrId,
-          name AS usrName,
-          email AS usrEmail,
-          status AS usrStatus
+          id AS "usrId",
+          name AS "usrName",
+          email AS "usrEmail",
+          status AS "usrStatus"
       FROM usr
       WHERE id = $1
     `, [req.params.usrId]);

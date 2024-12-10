@@ -12,6 +12,6 @@ router.use(async (res, req, next) => {
 });
 
 router.use('/meets', meetRouter);
-router.use('/users', userRouter);
+router.use('/usrs', userRouter);
 
 export default router;
