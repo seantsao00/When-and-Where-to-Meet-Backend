@@ -1,3 +1,55 @@
+import { exec } from 'node:child_process';
+import path from 'path';
+import pkg from 'pg';
+
+const { Client } = pkg;
+const dir = path.join(import.meta.dirname, '../data/');
+const runCommand = (command) => {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(`Error executing command: ${error.message}`);
+        return;
+      }
+      resolve(stdout || stderr);
+    });
+  });
+};
+
+const indexDB = async (DBName) => {
+  const createIndex1 = ` 
+    CREATE INDEX ON usr (name);
+  `;
+  const client = new Client({ database: DBName });
+  try {
+    await client.connect();
+    await client.query(createIndex1);
+  } catch (err) {
+    console.error('Error building index:', err.message);
+  } finally {
+    await client.end();
+    console.log('Database connection closed.');
+  }
+};
+
+const restoreDB = async (DBName) => {
+  console.log('Restoring database...');
+  try {
+    const client = new Client({ database: 'postgres' });
+    await client.connect();
+
+    const backupFilePath = path.join(dir, 'When-and-Where-to-Meet.backup');
+    await client.query(`DROP DATABASE IF EXISTS ${DBName}`);
+    await client.query(`CREATE DATABASE ${DBName}`);
+    await client.end();
+
+    await runCommand(`psql ${DBName} < ${backupFilePath}`);
+    console.log('Database restored.');
+  } catch (err) {
+    console.error('Error restoring database:', err.message);
+  }
+};
+
 const executeQuery = async (pool, query, params = []) => {
   try {
     await pool.query(query, params);
@@ -8,4 +60,4 @@ const executeQuery = async (pool, query, params = []) => {
   }
 };
 
-export { executeQuery };
+export { executeQuery, indexDB, restoreDB };

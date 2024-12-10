@@ -1,7 +1,7 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-import { executeQuery } from './utils.js';
+import { executeQuery } from '../utils.js';
 
 const initDb = async () => {
   console.log('Starting database initialization...');
@@ -119,4 +119,6 @@ const initDb = async () => {
   }
 };
 
-initDb();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  initDb();
+}

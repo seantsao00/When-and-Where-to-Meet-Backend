@@ -3,10 +3,10 @@
   "scripts": {
     "dev": "node --env-file=.env src/index.js",
     "lint": "eslint \"src/**\"",
-    "index-db": "node --env-file=.env scripts/index-DB.js",
-    "init-db": "node --env-file=.env scripts/init-DB.js",
-    "restore-db": "node --env-file=.env scripts/restore-DB.js",
-    "seed-db": "node --env-file=.env scripts/seed-DB.js"
+    "init-db": "node --env-file=.env scripts/BackupGen/init-DB.js",
+    "build-db": "node --env-file=.env scripts/Build/build-DB.js",
+    "seed-db": "node --env-file=.env scripts/BackupGen/seed-DB.js",
+    "test-db": "node --env-file=.env scripts/TestIndex/test-index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

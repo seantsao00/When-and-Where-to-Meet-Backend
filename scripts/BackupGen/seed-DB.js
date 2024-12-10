@@ -3,7 +3,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool();
-const dir = path.join(import.meta.dirname, '../data/dataset/');
+const dir = path.join(import.meta.dirname, '../../data/dataset/');
 
 // 資料庫初始化程式
 const seedDB = async () => {
@@ -59,5 +59,6 @@ const seedDB = async () => {
     console.log('Database connection closed.');
   }
 };
-
-seedDB();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedDB();
+}
