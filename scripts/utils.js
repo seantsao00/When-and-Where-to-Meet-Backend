@@ -61,13 +61,27 @@ const executeQuery = async (pool, query, params = []) => {
   }
 };
 
-const queryWithTimer = async (text, params) => {
+const queryWithAnalysis = async (text, params) => {
   const pool = new Pool();
   const start = Date.now();
   const res = await pool.query(text, params);
+  const plan = await pool.query(`EXPLAIN (FORMAT JSON) ${text}`, params);
   const duration = Date.now() - start;
   console.log('executed query', { text, duration, rows: res.rowCount });
+  console.log('query plan', plan);
   return res;
 };
 
-export { executeQuery, indexDB, restoreDB, queryWithTimer, runCommand };
+const dropDatabase = async (DBName) => {
+  try {
+    const client = new Client({ database: 'postgres' });
+    await client.connect();
+    await client.query(`DROP DATABASE IF EXISTS ${DBName}`);
+    await client.end();
+    console.log(`Database ${DBName} dropped.`);
+  } catch (err) {
+    console.error('Error dropping database:', err.message);
+  }
+};
+
+export { executeQuery, indexDB, restoreDB, queryWithAnalysis, runCommand, dropDatabase };

@@ -1,5 +1,5 @@
 import pkg from 'pg';
-import { indexDB, restoreDB } from './utils.js';
+import { indexDB, queryWithAnalysis, restoreDB, dropDatabase } from './utils.js';
 
 const { Client } = pkg;
 const testDBName = 'testIndex';
@@ -13,14 +13,20 @@ const test_index = async () => {
   const client = new Client({ database: testDBName });
   try {
     await restoreDB(testDBName);
+
     await client.connect();
-    await client.query(query);
+    await queryWithAnalysis(query);
+    await client.end();
+
     await indexDB(testDBName);
+
+    await client.connect();
+    await queryWithAnalysis(query);
+    await client.end();
+
+    await dropDatabase(testDBName);
   } catch (err) {
     console.error('Error building index:', err.message);
-  } finally {
-    await client.end();
-    console.log('Database connection closed.');
   }
 };
 

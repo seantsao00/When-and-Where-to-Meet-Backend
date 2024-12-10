@@ -6,7 +6,7 @@ const router = Router();
 
 router.use(async (res, req, next) => {
   const token = res.headers.authorization;
-  if (token?.startsWith('Bearer ')) req.userId = token.slice(7);
+  if (token?.startsWith('Bearer ')) req.usrId = token.slice(7);
 
   next();
 });
