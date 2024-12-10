@@ -38,4 +38,4 @@ const getClient = async () => {
   return client;
 };
 
-export { query, getClient };
+export { getClient, query };

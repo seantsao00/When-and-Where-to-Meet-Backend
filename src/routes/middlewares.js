@@ -58,4 +58,4 @@ const meetHolderChecker = async (req, res, next) => {
   next();
 };
 
-export { usrExistsChecker, usrAuthChecker, meetExistsChecker, meetHolderChecker };
+export { meetExistsChecker, meetHolderChecker, usrAuthChecker, usrExistsChecker };
