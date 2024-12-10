@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/index.js';
-import { usrAuthChecker, usrExistsChecker } from './middlewares.js';
+import { adminChecker, usrAuthChecker, usrExistsChecker } from './middlewares.js';
 
 const router = Router();
 
@@ -84,6 +84,18 @@ router.delete('/:usrId', usrExistsChecker, usrAuthChecker, async (req, res) => {
   try {
     await query('DELETE FROM usr WHERE id = $1', [req.params.usrId]);
     res.sendStatus(204);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
+// POST /usrs/:usrId/ban
+// Bans a usr.
+router.post('/:usrId/ban', usrExistsChecker, adminChecker, async (req, res) => {
+  try {
+    await query('UPDATE usr SET status = $1 WHERE id = $2', ['banned', req.params.usrId]);
+    res.sendStatus(200);
   } catch (err) {
     console.error(err);
     res.sendStatus(500);
