@@ -8,10 +8,9 @@ const usrExistsChecker = async (req, res, next) => {
   try {
     const result = await query('SELECT * FROM usr WHERE id = $1 AND status != $2', [req.params.usrId, 'deleted']);
     if (result.rows.length === 0) {
-      res.sendStatus(404);
-    } else {
-      next();
+      return res.sendStatus(404);
     }
+    next();
   } catch (err) {
     console.error(err);
     res.sendStatus(500);
@@ -23,7 +22,7 @@ const usrAuthChecker = async (req, res, next) => {
     const usrId = req.usrId;
     const { usrId: targetUsrId } = req.params;
     if (usrId !== targetUsrId) {
-      res.sendStatus(403);
+      return res.sendStatus(403);
     }
     next();
   } catch (err) {
