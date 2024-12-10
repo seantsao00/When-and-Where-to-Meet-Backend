@@ -171,6 +171,48 @@ router.delete('/:meetId', meetExistsChecker, meetHolderChecker, async (req, res)
   }
 });
 
+// POST /meets/:meetId/transfer
+// Transfer a meet to another usr.
+// Request body: { newHolderId }
+router.post('/:meetId/transfer', meetExistsChecker, meetHolderChecker, async (req, res) => {
+  try {
+    const { meetId } = req.params;
+    const { newHolderId } = req.body;
+
+    if (newHolderId == null)
+      return res.status(400).json({ error: 'Missing new holder ID.' });
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      const { rows: newHolder } = await client.query(`
+        SELECT * FROM usr WHERE id = $1
+      `, [newHolderId]);
+      if (newHolder.length === 0) {
+        res.status(400).json({ error: 'New holder does not exist.' });
+        throw new Error('New holder does not exist.');
+      }
+
+      await client.query(`
+        UPDATE meet SET holder_id = $1 WHERE id = $2
+      `, [newHolderId, meetId]);
+
+      await client.query('COMMIT');
+      res.sendStatus(200);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error(err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Failed to transfer meet.' });
+  }
+});
+
 // POST /meets/:meetId/invite
 // Invite users to a meet.
 // Request body: { usrIds: [usrId] }
