@@ -294,7 +294,7 @@ router.post('/:meetId/participate', meetExistsChecker, async (req, res) => {
           SELECT * FROM meet WHERE id = $1 AND status = 'active'
         `, [meetId])).rows[0];
 
-        if (!meet.isPublic) {
+        if (!meet.is_public) {
           res.status(403).json({ error: 'This meet is private.' });
           throw new Error('This meet is private.');
         }
