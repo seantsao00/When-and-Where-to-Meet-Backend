@@ -74,7 +74,7 @@ const meetParticipantChecker = async (req, res, next) => {
   const usrId = req.usrId;
   const { meetId } = req.params;
   const { rows } = await query(`
-    SELECT * FROM participant WHERE meet_id = $1 AND usr_id = $2 AND is_pending = false
+    SELECT * FROM participation WHERE meet_id = $1 AND usr_id = $2 AND is_pending = false
   `, [meetId, usrId]);
   if (rows.length === 0) return res.sendStatus(403);
   next();
