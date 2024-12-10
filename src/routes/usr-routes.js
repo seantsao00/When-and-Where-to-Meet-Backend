@@ -10,11 +10,11 @@ const router = Router();
 // Response body: { usrId: number }
 router.post('/', async (req, res) => {
   try {
-    const { id } = await query(`
+    const { id } = (await query(`
       INSERT INTO usr (name, email)
       VALUES ($1, $2)
       RETURNING id
-    `, [req.body.name, req.body.email]);
+    `, [req.body.name, req.body.email])).rows[0];
 
     res.status(201).json({ usrId: id });
   } catch (err) {
