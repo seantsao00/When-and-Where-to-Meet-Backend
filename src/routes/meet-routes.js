@@ -270,11 +270,11 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
       }
       const availability = map[row.usrId].availabilities.find(a => a.time_segment === row.time_segment);
       availability.locations.push({
-        locationId: row.locationId,
-        locationName: row.locationName,
-        locationAddress: row.locationAddress,
-        locationPrice: row.locationPrice,
-        locationCapacity: row.locationCapacity,
+        locationId: row.locationid,
+        locationName: row.locationname,
+        locationAddress: row.locationaddress,
+        locationPrice: row.locationprice,
+        locationCapacity: row.locationcapacity,
       });
       return map;
     }), {});
