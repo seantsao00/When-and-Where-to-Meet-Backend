@@ -251,7 +251,7 @@ router.post('/:meetId/invite', meetExistsChecker, meetHolderChecker, async (req,
         `, [usrId, meetId]);
         if (existingParticipation.length === 0) {
           await client.query(`
-            INSERT INTO participation (usr_id, meet_id, pending)
+            INSERT INTO participation (usr_id, meet_id, is_pending)
             VALUES ($1, $2, true)
           `, [usrId, meetId]);
         }
@@ -281,12 +281,12 @@ router.post('/:meetId/participate', meetExistsChecker, async (req, res) => {
     const client = await getClient();
     try {
       const { rows: existingParticipation } = await query(`
-        SELECT * FROM participation WHERE usr_id = $1 AND meet_id = $2 AND pending = true
+        SELECT * FROM participation WHERE usr_id = $1 AND meet_id = $2 AND is_pending = true
       `, [usrId, meetId]);
 
       if (existingParticipation.length === 1) {
         await query(`
-          UPDATE participation SET pending = false
+          UPDATE participation SET is_pending = false
           WHERE usr_id = $1 AND meet_id = $2
         `, [usrId, meetId]);
       } else {
@@ -300,7 +300,7 @@ router.post('/:meetId/participate', meetExistsChecker, async (req, res) => {
         }
 
         await query(`
-          INSERT INTO participation (usr_id, meet_id, pending)
+          INSERT INTO participation (usr_id, meet_id, is_pending)
           VALUES ($1, $2, false)
         `, [usrId, meetId]);
       }

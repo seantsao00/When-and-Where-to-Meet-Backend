@@ -109,11 +109,11 @@ router.get('/:usrId/participating-meets', usrExistsChecker, usrAuthChecker, asyn
   try {
     const { rows } = await query(`
       SELECT
-          meet.id AS meetId,
-          meet.name AS meetName
-      FROM meet
-        JOIN participation ON meet.id = participation.meet_id
-      WHERE participation.usr_id = $1 AND participation.pending = false
+          m.id AS meetId,
+          m.name AS meetName
+      FROM meet AS m
+        JOIN participation AS p ON m.id = p.meet_id
+      WHERE p.usr_id = $1 AND p.is_pending = false
     `, [req.params.usrId]);
 
     res.json({ items: rows });
