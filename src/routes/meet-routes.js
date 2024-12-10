@@ -549,11 +549,11 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
     if (rows.length === 0) return res.json({ items: [] });
 
     const items = Object.values(rows.reduce((map, row) => {
-      if (!map[row.timeSegment]) {
-        map[row.timeSegment] = { timeSegment: row.timeSegment, locations: [] };
+      if (!map[row.timeSegment.getTime()]) {
+        map[row.timeSegment.getTime()] = { timeSegment: getYYYYMMDDHHMISS(row.timeSegment), locations: [] };
       }
       if (row.locationId) {
-        map[row.timeSegment].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
+        map[row.timeSegment.getTime()].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
       }
       return map;
     }, {}));
