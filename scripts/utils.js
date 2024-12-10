@@ -2,7 +2,8 @@ import { exec } from 'node:child_process';
 import path from 'path';
 import pkg from 'pg';
 
-const { Client } = pkg;
+const { Client, Pool } = pkg;
+
 const dir = path.join(import.meta.dirname, '../data/');
 const runCommand = (command) => {
   return new Promise((resolve, reject) => {
@@ -60,4 +61,13 @@ const executeQuery = async (pool, query, params = []) => {
   }
 };
 
-export { executeQuery, indexDB, restoreDB };
+const queryWithTimer = async (text, params) => {
+  const pool = new Pool();
+  const start = Date.now();
+  const res = await pool.query(text, params);
+  const duration = Date.now() - start;
+  console.log('executed query', { text, duration, rows: res.rowCount });
+  return res;
+};
+
+export { executeQuery, indexDB, restoreDB, queryWithTimer, runCommand };

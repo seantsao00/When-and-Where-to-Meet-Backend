@@ -1,6 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 import random
+from datetime import timedelta
 
 # 讀取 CSV 檔案
 meets_file_path = "../dataset/meet.csv"
@@ -27,24 +28,48 @@ availability_with_locations = availability.merge(
 )
 
 final_results = []
-used_combinations = set()
+used_combinations = {}  # key: location_id, value: list of (start_time, end_time)
 
 # 計算每個會議的最終時間和地點
-for meet_id in tqdm(meets['id'].unique()):
+for _, meet in tqdm(meets.iterrows(), total=meets.shape[0]):
+    meet_id = meet['id']
+    start_time = pd.to_datetime(meet['start_time'])
+    end_time = start_time + pd.to_timedelta(meet['duration'])
+
+    # 隨機跳過部分會議（15%）
     if random.choices([True, False], weights=[1, 15])[0]:
         continue
+
     meet_availabilities = availability_with_locations[availability_with_locations['meet_id'] == meet_id]
     if not meet_availabilities.empty:
         group_counts = meet_availabilities.groupby(['time_segment', 'location_id']).size()
         if not group_counts.empty:
             for combination, _ in group_counts.sort_values(ascending=False).items():
-                final_time, final_place_id = combination
-                if (final_time, final_place_id) not in used_combinations:
-                    used_combinations.add((final_time, final_place_id))
+                final_time = pd.to_datetime(combination[0])
+                final_place_id = combination[1]
+
+                # 計算候選時間範圍
+                candidate_start = final_time
+                candidate_end = final_time + pd.to_timedelta(meet['duration'])
+
+                # 檢查時間是否與其他會議重疊
+                overlap = False
+                if final_place_id in used_combinations:
+                    for existing_start, existing_end in used_combinations[final_place_id]:
+                        if not (candidate_end <= existing_start or candidate_start >= existing_end):
+                            overlap = True
+                            break
+
+                if not overlap:
+                    # 標記地點和時間段已被使用
+                    if final_place_id not in used_combinations:
+                        used_combinations[final_place_id] = []
+                    used_combinations[final_place_id].append((candidate_start, candidate_end))
+
                     final_results.append({
                         "meet_id": meet_id,
                         "final_place_id": int(final_place_id),
-                        "final_time": final_time
+                        "final_time": candidate_start
                     })
                     break
 

@@ -645,4 +645,8 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
   }
 });
 
+// GET /meets/:meetId/best-decision
+// Get the most suitable decision for a meet.
+// Response body: { locationId, locationName, locationAddress, locationPrice, locationCapacity, finalTime }
+
 export default router;
