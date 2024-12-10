@@ -791,9 +791,9 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
     await query(`
       DO $$
       DECLARE
-          meeting_start_time TIME;
-          meeting_duration INTERVAL;
-          meeting_end_time TIMESTAMP;
+          meeting_start_time time;
+          meeting_duration interval;
+          meeting_end_time timestamp;
       BEGIN
           SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
           -- 檢查是否已存在該會議的 final_decision
@@ -826,8 +826,8 @@ router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, asy
               FROM final_decision AS fd
               JOIN meet AS m ON fd.meet_id = m.id
               WHERE fd.final_place_id = $2
-                AND TSTZRANGE($3::TIMESTAMP, meeting_end_time) 
-                    && TSTZRANGE(fd.final_time, fd.final_time + m.duration)
+                AND tstzrange($3::timestamp, meeting_end_time) 
+                    && tstzrange(fd.final_time, fd.final_time + m.duration)
           ) THEN
               -- 發生衝突，回滾交易
               RAISE EXCEPTION 'Time and place conflict detected.';
