@@ -32,6 +32,16 @@ const usrAuthChecker = async (req, res, next) => {
   }
 };
 
+const adminChecker = async (req, res, next) => {
+  try {
+    if (!req.admin) return res.sendStatus(403);
+    next();
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+};
+
 // Make sure to the meet exists.
 // If it does not exist, return 404.
 // Meets are considered to exist if they are active.
@@ -58,4 +68,14 @@ const meetHolderChecker = async (req, res, next) => {
   next();
 };
 
-export { usrExistsChecker, usrAuthChecker, meetExistsChecker, meetHolderChecker };
+const locationExistsChecker = async (req, res, next) => {
+  const { locationId } = req.params;
+  const { rows } = await query(`
+    SELECT * FROM location WHERE id = $1
+  `, [locationId]);
+
+  if (rows.length === 0) return res.sendStatus(404);
+  next();
+};
+
+export { adminChecker, locationExistsChecker, meetExistsChecker, meetHolderChecker, usrAuthChecker, usrExistsChecker };
