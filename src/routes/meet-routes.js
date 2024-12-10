@@ -488,6 +488,8 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
       WHERE a.meet_id = $1
     `, [meetId]);
 
+    if (rows.length === 0) return res.json({ items: [] });
+
     const items = Object.values(rows.reduce((map, row) => {
       if (!map[row.usrId]) {
         map[row.usrId] = { usrId: row.usrId, usrname: row.usrName, usrEmail: row.usrEmail, availabilities: [] };
