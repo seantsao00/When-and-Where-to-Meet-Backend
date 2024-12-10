@@ -546,15 +546,14 @@ router.get('/:meetId/availabilities/:usrId', meetExistsChecker, async (req, res,
       WHERE a.meet_id = $1 AND a.usr_id = $2
     `, [meetId, targetUsrId]);
 
-    if (rows.length === 0)
-      return res.json({ items: [] });
+    if (rows.length === 0) return res.json({ items: [] });
 
     const items = Object.values(rows.reduce((map, row) => {
-      if (!map[row.time_segment]) {
-        map[row.time_segment] = { time_segment: row.time_segment, locations: [] };
+      if (!map[row.timeSegment]) {
+        map[row.timeSegment] = { timeSegment: row.timeSegment, locations: [] };
       }
-      if (row.location_option_id) {
-        map[row.time_segment].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
+      if (row.locationId) {
+        map[row.timeSegment].locations.push({ locationId: row.locationId, locationName: row.locationName, locationAddress: row.locationAddress, locationPrice: row.locationPrice, locationCapacity: row.locationCapacity });
       }
       return map;
     }, {}));
