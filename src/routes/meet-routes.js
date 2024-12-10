@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
         end_time AS endTime,
         start_date AS startDate,
         end_date AS endDate,
-        duration
+        duration ASmeetDuration
       FROM meet
       WHERE status = 'active'
       ORDER BY id
