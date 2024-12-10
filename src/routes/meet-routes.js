@@ -799,68 +799,88 @@ router.post('/:meetId/availabilities/:usrId/multiple-time-segments', meetExistsC
 // POST /meets/:meetId/final-decision
 // Make a final decision for a meet.
 // Request body: { finalPlaceId, finalTime }
+
 router.post('/:meetId/final-decision', meetExistsChecker, meetHolderChecker, async (req, res) => {
+
+  const client = await getClient();
   try {
     const { meetId } = req.params;
     const { finalPlaceId, finalTime } = req.body;
 
-    await query(`
-      DO $$
-      DECLARE
-          meeting_start_time time;
-          meeting_duration interval;
-          meeting_end_time timestamp;
-      BEGIN
-          SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-          -- 檢查是否已存在該會議的 final_decision
-          IF EXISTS (
-              SELECT 1
-              FROM final_decision
-              WHERE meet_id = $1
-          ) THEN
-              RAISE EXCEPTION 'Final decision already exists for this meeting.';
-          END IF;
+    await client.query('BEGIN'); // Start transaction
 
-          -- 獲取會議的開始時間和時長
-          SELECT start_time, duration
-          INTO meeting_start_time, meeting_duration
-          FROM meet
-          WHERE id = $1;
+    // Check if final decision already exists
+    const { rowCount: existingCount } = await client.query(
+      `SELECT 1 FROM final_decision WHERE meet_id = $1`,
+      [meetId]
+    );
 
-          -- 計算會議的結束時間
-          meeting_end_time := $3:TIMESTAMP + meeting_duration;
+    if (existingCount > 0) {
+      throw new Error('Final decision already exists for this meeting.');
+    }
 
-          -- 對目標地點加寫鎖
-          PERFORM 1
-          FROM location
-          WHERE id = $2
-          FOR UPDATE;
+    // Fetch meeting details
+    const { rows: [meeting] } = await client.query(`
+      SELECT start_time, 
+            duration, 
+            ($2::timestamp + duration) AS meeting_end_time
+      FROM meet
+      WHERE id = $1
+  ` ,[meetId, finalTime]
+    );
 
-          -- 檢查時間地點是否衝突
-          IF EXISTS (
-              SELECT 1
-              FROM final_decision AS fd
-              JOIN meet AS m ON fd.meet_id = m.id
-              WHERE fd.final_place_id = $2
-                AND tstzrange($3::timestamp, meeting_end_time) 
-                    && tstzrange(fd.final_time, fd.final_time + m.duration)
-          ) THEN
-              -- 發生衝突，回滾交易
-              RAISE EXCEPTION 'Time and place conflict detected.';
-          END IF;
+    if (!meeting) {
+      throw new Error('Meeting not found.');
+    }
 
-          -- 插入最終決定
-          INSERT INTO final_decision (meet_id, final_place_id, final_time)
-          VALUES ($1, $2, $3);
-      END $$;
-    `, [meetId, finalPlaceId, finalTime]);
+    const { start_time: startTime, duration, meeting_end_time: meetingEndTime } = meeting;
+
+    // Lock the target location for updates
+    const { rowCount: locationCount } = await client.query(`
+      SELECT 1 FROM location WHERE id = $1 FOR UPDATE`,
+      [finalPlaceId]
+    );
+
+    if (locationCount === 0) {
+      throw new Error('Location not found.');
+    }
+
+    // Check for time and place conflicts
+    const { rowCount: conflictCount } = await client.query(`
+      SELECT 1
+      FROM final_decision AS fd
+      JOIN meet AS m ON fd.meet_id = m.id
+      WHERE fd.final_place_id = $1
+        AND tstzrange($2::timestamp, $3::timestamp)
+          && tstzrange(fd.final_time, fd.final_time + m.duration)
+      `,
+      [finalPlaceId, finalTime, meetingEndTime]
+    );
+
+    if (conflictCount > 0) {
+      throw new Error('Time and place conflict detected.');
+    }
+
+    // Insert final decision
+    await client.query(`
+      INSERT INTO final_decision (meet_id, final_place_id, final_time)
+      VALUES ($1, $2, $3)
+      `,
+      [meetId, finalPlaceId, finalTime]
+    );
+
+    await client.query('COMMIT'); // Commit transaction
     res.sendStatus(201);
   } catch (err) {
+    await client.query('ROLLBACK'); // Rollback on error
     console.error(err);
     if (res.headersSent) return;
-    res.status(500).json({ error: 'Failed to make final decision.' });
+    res.status(500).json({ error: err.message || 'Failed to make final decision.' });
+  } finally {
+    client.release(); // Release client back to the pool
   }
 });
+
 
 // GET /meets/:meetId/best-decision
 // Get the most suitable decision for a meet.
