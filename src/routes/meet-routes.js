@@ -506,7 +506,7 @@ router.get('/:meetId/availabilities', meetExistsChecker, async (req, res) => {
         locationCapacity: row.locationCapacity,
       });
       return map;
-    }), {});
+    }, {}));
 
     res.json({ items });
   } catch (err) {
